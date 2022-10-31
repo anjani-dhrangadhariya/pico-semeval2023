@@ -37,13 +37,10 @@ def get_char_labels(df):
         reddit_id = row['subreddit_id']
 
         post_id = row['post_id']
-        #print( post_id )
 
         claim = row['claim']
-        #print('Claim: ', claim)
 
         full_text = row['text']
-        #print('Full-Text: ', full_text)
 
         if any(word in full_text for word in deleted_list):
             # If the post was removed by the user
@@ -61,7 +58,6 @@ def get_char_labels(df):
 
             for l in stage2_labels:
                 extrct_annot = row['text'][ l['startOffset'] : l['endOffset'] ]  
-                #print( 'EXTRACTED ANNOTATIONS: ' , extrct_annot, ' >>>>>>>> ' , l['label'] )
 
                 # Are the start and stop offsets in the offsets?
                 if l['startOffset'] in full_text_indices:
@@ -76,14 +72,8 @@ def get_char_labels(df):
                         if new_label > old_label:
                             label_each_char[i] = new_label
                     assert len(label_each_char) == prev_length
-                    #print( label_each_char )
 
             labels.append(label_each_char)
 
-        #if counter == 50:
-        #    break
-
-        #print('--------------------------------------------------------')
-
-    # return return 
+    # return 
     return labels
