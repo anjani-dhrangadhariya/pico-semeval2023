@@ -23,3 +23,5 @@ df_test = pd.read_csv(file_path_test, sep=',')
 test_df = df_test.to_dict('records')
 
 
+deleted_list = ['[deleted]', '[removed]', 'deleted by user']
+
