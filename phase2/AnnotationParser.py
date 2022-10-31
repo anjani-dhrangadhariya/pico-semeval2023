@@ -77,3 +77,7 @@ def get_char_labels(df):
 
     # return 
     return labels
+
+
+# Get the labels for train dataframe
+labels_train = get_char_labels(train_df)
