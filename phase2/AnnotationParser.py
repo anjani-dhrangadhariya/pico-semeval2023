@@ -23,3 +23,12 @@ train_df = df_train.to_dict('records')
 
 df_test = pd.read_csv(file_path_test, sep=',')
 test_df = df_test.to_dict('records')
+
+# Ignore the delted posts
+deleted_list = ['[deleted]', '[removed]', 'deleted by user']
+
+
+# Label mapping
+picos_mapping = {'population': 1, 'intervention':2, 'outcome':3}
+
+
