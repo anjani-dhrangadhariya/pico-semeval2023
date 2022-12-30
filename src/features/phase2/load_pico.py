@@ -1,7 +1,23 @@
 # generic imports
+import os
+import random
 import pandas as pd
+import numpy as np
+import torch
+
 
 from arguments import getArguments
+
+#  Seed everything
+def seed_everything( seed ):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+
 
 # get arguments
 args = getArguments() # get all the experimental arguments
@@ -16,10 +32,3 @@ def load_data(input_directory):
     val_df = pd.read_csv(f'{input_directory}/{val}', sep='\t')
 
     return train, val
-
-train_df, val_df = load_data(args.data_dir)
-print( 'Data loaded...' )
-
-
-# Get features
-
