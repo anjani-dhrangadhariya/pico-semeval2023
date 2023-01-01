@@ -93,10 +93,16 @@ def transform(df, tokenizer, max_length, pretrained_model):
     for tokens, labels, pos, lemma in zip(list(df['tokens']), list(df['labels']), list(df['pos']), list(df['lemma'])) :
 
         # Tokenize and preserve labels
-        tokens_ = ast.literal_eval( tokens )
-        labels_ = ast.literal_eval( labels )
-        pos_ = ast.literal_eval( pos )
-        lemma_ = ast.literal_eval( lemma )
+        if isinstance(tokens, str):
+            tokens_ = ast.literal_eval( tokens )
+            labels_ = ast.literal_eval( labels )
+            pos_ = ast.literal_eval( pos )
+            lemma_ = ast.literal_eval( lemma )
+        else:
+            tokens_ = tokens
+            labels_ = labels
+            pos_ = pos
+            lemma_ = lemma
 
         tok_sentence, tok_labels, tok_pos, tok_lemma = tokenize_and_preserve_labels(tokens_, labels_, pos_, lemma_, tokenizer)
 
@@ -129,4 +135,3 @@ def transform(df, tokenizer, max_length, pretrained_model):
         pos_spetok = addSpecialtokens(pos_trunc, 0, 0)
         lemma_spetok = addSpecialtokens(lemma_trunc, 0, 0)
 
-        print( tokens_[-1], tok_sentence[-1], tokens_trunc[-1], tokens_spetok[-1] )
