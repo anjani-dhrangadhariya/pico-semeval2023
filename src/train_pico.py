@@ -84,7 +84,23 @@ if __name__ == "__main__":
         dev_pos_tags = convertDf2Tensor( val_df['attn_masks'], np.int64)
         print( 'Tensors loaded...' )
 
-        
+
+        # # ----------------------------------------------------------------------------------------
+        # # Create dataloaders from the tensors
+        # # ----------------------------------------------------------------------------------------
+        # # Create the DataLoader for our training set.
+        train_data = TensorDataset(train_input_ids, train_input_labels, train_attn_masks, train_pos_tags)
+        train_sampler = RandomSampler(train_data)
+        train_dataloader = DataLoader(train_data, sampler=None, batch_size=10, shuffle=False)
+
+        # # Create the DataLoader for our validation set.
+        dev_data = TensorDataset(dev_input_ids, dev_input_labels, dev_attn_masks, dev_pos_tags)
+        dev_sampler = RandomSampler(dev_data)
+        dev_dataloader = DataLoader(dev_data, sampler=None, batch_size=10, shuffle=False)
+        print( 'Dataloaders loaded...' )
+
+        ##
+
 
 
 
