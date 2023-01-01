@@ -56,6 +56,37 @@ def tokenize_and_preserve_labels(sentence, text_labels, pos, lemma, tokenizer):
     return tokenized_sentence, labels, poss, lemmas
 
 
+##################################################################################
+# The function truncates input sequences to max lengths
+##################################################################################
+def truncateSentence(sentence, trim_len):
+
+    trimmedSentence = []
+    if  len(sentence) > trim_len:
+        trimmedSentence = sentence[:trim_len]
+    else:
+        trimmedSentence = sentence
+
+    assert len(trimmedSentence) <= trim_len
+    return trimmedSentence
+
+
+##################################################################################
+# The function adds special tokens to the truncated sequences
+##################################################################################
+def addSpecialtokens(eachText, start_token, end_token):
+    insert_at_start = 0
+    eachText[insert_at_start:insert_at_start] = [start_token]
+
+    insert_at_end = len(eachText)
+    eachText[insert_at_end:insert_at_end] = [end_token]
+
+    assert eachText[0] == start_token
+    assert eachText[-1] == end_token
+
+    return eachText
+
+
 def transform(df, tokenizer, max_length, pretrained_model):
 
     tokenized = []
@@ -69,4 +100,33 @@ def transform(df, tokenizer, max_length, pretrained_model):
 
         tok_sentence, tok_labels, tok_pos, tok_lemma = tokenize_and_preserve_labels(tokens_, labels_, pos_, lemma_, tokenizer)
 
-        
+        # Truncate the sequences (sentence and label) to (max_length - 2)
+        if max_length >= 510:
+            tokens_trunc = truncateSentence(tok_sentence, (max_length - 2))
+            labels_trunc = truncateSentence(tok_labels, (max_length - 2))
+            pos_trunc = truncateSentence(tok_pos, (max_length - 2))
+            lemma_trunc = truncateSentence(tok_lemma, (max_length - 2))
+            assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc) == len(lemma_trunc)
+        else:
+            tokens_trunc = tok_sentence
+            labels_trunc = tok_labels
+            pos_trunc = tok_pos
+            lemma_trunc = tok_lemma
+            assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc) == len(lemma_trunc)
+
+
+        # Add special tokens CLS and SEP for the BERT tokenizer (identical for SCIBERT)
+        if 'bert' in pretrained_model.lower():
+            tokens_spetok = addSpecialtokens(tokens_trunc, tokenizer.cls_token_id, tokenizer.sep_token_id)
+        elif 'gpt2' in pretrained_model.lower():
+            tokens_spetok = addSpecialtokens(tokens_trunc, tokenizer.bos_token_id, tokenizer.eos_token_id)
+
+        if any(isinstance(i, list) for i in labels_trunc) == False:
+            labels_spetok = addSpecialtokens(labels_trunc, 0, 0)
+        else:
+            labels_spetok = [[0.0,0.0]] + labels_trunc + [[0.0,0.0]]
+
+        pos_spetok = addSpecialtokens(pos_trunc, 0, 0)
+        lemma_spetok = addSpecialtokens(lemma_trunc, 0, 0)
+
+        print( tokens_[-1], tok_sentence[-1], tokens_trunc[-1], tokens_spetok[-1] )
