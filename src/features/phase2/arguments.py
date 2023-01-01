@@ -21,6 +21,7 @@ def getArguments():
 
     parser.add_argument('-use_lemma', type = bool, default= False)
 
+    parser.add_argument('-supervision', type = str, default = 'ws') # label_type = {fs, ws, hs, ...} 
     parser.add_argument('-entity', type = str, default = 'participant') # participant, intervention, outcome, study type
     parser.add_argument('-data_dir', type = Path, default = '/mnt/nas2/data/systematicReview/semeval2023/data/preprocessed')
 

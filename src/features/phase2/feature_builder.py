@@ -5,7 +5,7 @@ import time
 from build_contextual_features import transform
 
 from tqdm.notebook import tqdm
-
+import pandas as pd
 from arguments import getArguments
 from build_contextual_features import tokenize_and_preserve_labels
 from choose_embed_type import choose_tokenizer_type
@@ -33,7 +33,8 @@ def build_features():
     train_toks, train_labs, train_pos, train_masks = transform( train_df, tokenizer, args.max_len, args.embed, args )
     val_toks, val_labs, val_pos, val_masks = transform( val_df, tokenizer, args.max_len, args.embed, args )
 
-    return train_df, val_df
+    # Assign transformed data to OG dataframe
+    train_df = train_df.assign(embeddings = pd.Series(train_toks).values, label_pads = pd.Series(train_labs).values, attn_masks = pd.Series(train_masks).values, inputpos = pd.Series(train_pos).values)
+    val_df = val_df.assign(embeddings = pd.Series(val_toks).values, label_pads = pd.Series(val_labs).values, attn_masks = pd.Series(val_masks).values, inputpos = pd.Series(val_pos).values)
 
-
-build_features()
+    return train_df, val_df, tokenizer, model
