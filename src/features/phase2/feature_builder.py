@@ -29,8 +29,9 @@ def build_features():
     tokenizer, model = choose_tokenizer_type( args.embed )
     print('Tokenizer and model loaded...')
 
-    # tokenize and preserve labels
-    transform( train_df, tokenizer, args.max_len, args.embed, args )
+    # Transform data
+    train_toks, train_labs, train_pos, train_masks = transform( train_df, tokenizer, args.max_len, args.embed, args )
+    val_toks, val_labs, val_pos, val_masks = transform( val_df, tokenizer, args.max_len, args.embed, args )
 
     return train_df, val_df
 

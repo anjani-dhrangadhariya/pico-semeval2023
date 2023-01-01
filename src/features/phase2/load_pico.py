@@ -91,7 +91,6 @@ def load_data(input_directory):
     # Binarize POS tags
     train_df['pos'] = train_df['pos'].apply( pos_2_numeric )
     val_df['pos'] = val_df['pos'].apply( pos_2_numeric )
-
     
 
     return train_df, val_df
