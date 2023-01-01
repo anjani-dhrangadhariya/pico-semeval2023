@@ -1,6 +1,13 @@
 # Transformers 
+from models.phase2.transformer_crf import TRANSFORMERCRF
 from transformers import (AutoModel, AutoModelWithLMHead,
                           AutoTokenizer, AutoConfig, AutoModelForTokenClassification)
+
+import sys
+path = '/home/anjani/pico-semeval2023/src/models/phase2'
+sys.path.append(path)
+from models.phase2 import transformer_crf
+from transformer_crf import TRANSFORMERCRF
 
 ##################################################################################
 # Load the chosen tokenizer
@@ -40,3 +47,9 @@ def choose_tokenizer_type(pretrained_model):
         model_ = AutoModel.from_pretrained("michiyasunaga/BioLinkBERT-base")
 
     return tokenizer_ , model_
+
+
+def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
+
+    if chosen_model == 'transformercrf':
+        model = TRANSFORMERCRF(args.freeze_bert, tokenizer, modelembed, args)

@@ -13,11 +13,11 @@ import time
 import traceback
 
 
+
 path = '/home/anjani/pico-semeval2023/src/features/phase2'
 sys.path.append(path)
 print(sys.path)
-from features.phase2 import feature_builder
-from features.phase2 import arguments
+from features.phase2 import feature_builder, choose_embed_type, arguments
 
 import mlflow
 import numpy as np
@@ -99,7 +99,13 @@ if __name__ == "__main__":
         dev_dataloader = DataLoader(dev_data, sampler=None, batch_size=10, shuffle=False)
         print( 'Dataloaders loaded...' )
 
-        ##
+        # ##################################################################################
+        # #Instantiating the BERT model
+        # ##################################################################################
+        print("Building model...")
+        createOSL = time.time()
+        loaded_model = choose_embed_type.choose_model(exp_args.embed, tokenizer, model, exp_args.model, exp_args)
+
 
 
 
