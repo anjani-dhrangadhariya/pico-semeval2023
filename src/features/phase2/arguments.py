@@ -19,15 +19,17 @@ def getArguments():
 
     parser.add_argument('-seed', type = int, default= 0)
 
+    parser.add_argument('-use_lemma', type = bool, default= False)
+
     parser.add_argument('-entity', type = str, default = 'participant') # participant, intervention, outcome, study type
     parser.add_argument('-data_dir', type = Path, default = '/mnt/nas2/data/systematicReview/semeval2023/data/preprocessed')
 
     parser.add_argument('-label_type', type = str, default = 'seq_lab') # label_type = {seq_lab, BIO, BIOES, ...} 
 
-    parser.add_argument('-max_len', type = int, default=510)
+    parser.add_argument('-max_len', type = int, default=512)
     parser.add_argument('-num_labels', type = int, default = 2) # 2 for binary (O-span vs. P/I/O) classification, 5 for multiclass (PICO) classification
 
-    parser.add_argument('-embed', type = str, default = 'roberta') # embed = {roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
+    parser.add_argument('-embed', type = str, default = 'bert') # embed = {roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
     parser.add_argument('-model', type = str, default = 'transformercrf') # model = {transformercrf, transformerlinear} 
     parser.add_argument('-bidrec', type = str, default=True)
 

@@ -1,7 +1,9 @@
 import ast
 from arguments import getArguments
-
+import numpy as np
 from choose_embed_type import choose_tokenizer_type
+from keras.preprocessing.sequence import pad_sequences
+
 
 # load arguments
 args = getArguments() # get all the experimental arguments
@@ -9,14 +11,14 @@ args = getArguments() # get all the experimental arguments
 # load tokenizer
 tokenizer, _ = choose_tokenizer_type( args.embed )
 
-def tokenize_and_preserve_labels(sentence, text_labels, pos, lemma, tokenizer):
+def tokenize_and_preserve_labels(sentence, text_labels, pos, tokenizer):
 
     tokenized_sentence = []
     labels = []
     poss = []
     lemmas = []
 
-    for word, label, pos_i, lemma_i in zip(sentence, text_labels, pos, lemma):
+    for word, label, pos_i in zip(sentence, text_labels, pos):
 
         # Tokenize the word and count # of subwords the word is broken into
         tokenized_word = tokenizer.encode(word, add_special_tokens = False)
@@ -29,7 +31,6 @@ def tokenize_and_preserve_labels(sentence, text_labels, pos, lemma, tokenizer):
         if n_subwords == 1:
             labels.extend([label] * n_subwords)
             poss.extend( [pos_i] * n_subwords )
-            lemmas.extend( [lemma_i] * n_subwords )
         elif n_subwords == 0:
             pass
         else:
@@ -41,7 +42,6 @@ def tokenize_and_preserve_labels(sentence, text_labels, pos, lemma, tokenizer):
                 labels.extend([label])
                 labels.extend( [dummy_label] * (n_subwords-1) )
                 poss.extend( [pos_i] * n_subwords )
-                lemmas.extend( [lemma_i] * n_subwords )
             else:
 
                 dummy_label = [100.00, 100.00]
@@ -49,11 +49,10 @@ def tokenize_and_preserve_labels(sentence, text_labels, pos, lemma, tokenizer):
                 labels.extend([label])
                 labels.extend( [dummy_label] * (n_subwords-1) )
                 poss.extend( [pos_i] * n_subwords )    
-                lemmas.extend( [lemma_i] * n_subwords )            
 
     assert len(tokenized_sentence) == len(labels) == len(poss)
 
-    return tokenized_sentence, labels, poss, lemmas
+    return tokenized_sentence, labels, poss
 
 
 ##################################################################################
@@ -86,39 +85,71 @@ def addSpecialtokens(eachText, start_token, end_token):
 
     return eachText
 
+##################################################################################
+# Generates attention masks
+##################################################################################
+def createAttnMask(input_ids, input_lbs):
 
-def transform(df, tokenizer, max_length, pretrained_model):
+    # Mask the abstains
+    # if isinstance(labels[0], int) == False:
+    #     labels = mask_abstains(labels)
+
+    # Add attention masks
+    # Create attention masks
+    attention_masks = []
+
+    # For each sentence...
+    for sent, lab in zip(input_ids, input_lbs):
+        
+        # Create the attention mask.
+        #   - If a token ID is 0, then it's padding, set the mask to 0.
+        #   - If a token ID is > 0, then it's a real token, set the mask to 1.
+        att_mask = [ int(token_id > 0) for token_id in sent ]
+
+        if isinstance(lab[0], np.ndarray):
+            for counter, l in enumerate(lab):
+                if len(set(l)) == 1 and list(set(l))[0] == 0.5:
+                    att_mask[counter] = 0
+        
+        # Store the attention mask for this sentence.
+        attention_masks.append(att_mask)
+
+    return np.asarray(attention_masks, dtype=np.uint8)
+
+
+def transform(df, tokenizer, max_length, pretrained_model, args):
+
+    if args.use_lemma == True:
+        tokens = list(df['lemma'])
+    else:
+        tokens = list(df['tokens'])
 
     tokenized = []
-    for tokens, labels, pos, lemma in zip(list(df['tokens']), list(df['labels']), list(df['pos']), list(df['lemma'])) :
+    for tokens, labels, pos in zip( tokens, list(df['labels']), list(df['pos']) ) :
 
         # Tokenize and preserve labels
         if isinstance(tokens, str):
             tokens_ = ast.literal_eval( tokens )
             labels_ = ast.literal_eval( labels )
             pos_ = ast.literal_eval( pos )
-            lemma_ = ast.literal_eval( lemma )
         else:
             tokens_ = tokens
             labels_ = labels
             pos_ = pos
-            lemma_ = lemma
 
-        tok_sentence, tok_labels, tok_pos, tok_lemma = tokenize_and_preserve_labels(tokens_, labels_, pos_, lemma_, tokenizer)
+        tok_sentence, tok_labels, tok_pos = tokenize_and_preserve_labels(tokens_, labels_, pos_, tokenizer)
 
         # Truncate the sequences (sentence and label) to (max_length - 2)
         if max_length >= 510:
             tokens_trunc = truncateSentence(tok_sentence, (max_length - 2))
             labels_trunc = truncateSentence(tok_labels, (max_length - 2))
             pos_trunc = truncateSentence(tok_pos, (max_length - 2))
-            lemma_trunc = truncateSentence(tok_lemma, (max_length - 2))
-            assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc) == len(lemma_trunc)
+            assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc)
         else:
             tokens_trunc = tok_sentence
             labels_trunc = tok_labels
             pos_trunc = tok_pos
-            lemma_trunc = tok_lemma
-            assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc) == len(lemma_trunc)
+            assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc)
 
 
         # Add special tokens CLS and SEP for the BERT tokenizer (identical for SCIBERT)
@@ -133,5 +164,29 @@ def transform(df, tokenizer, max_length, pretrained_model):
             labels_spetok = [[0.0,0.0]] + labels_trunc + [[0.0,0.0]]
 
         pos_spetok = addSpecialtokens(pos_trunc, 0, 0)
-        lemma_spetok = addSpecialtokens(lemma_trunc, 0, 0)
 
+
+        # PAD the sequences to max length
+        if 'bert' in pretrained_model.lower():
+            input_ids = pad_sequences([ tokens_spetok ] , maxlen=max_length, value=tokenizer.pad_token_id, padding="post")
+            input_ids = input_ids[0]
+        elif 'gpt2' in pretrained_model.lower():
+            input_ids = pad_sequences([ tokens_spetok ] , maxlen=max_length, value=tokenizer.unk_token_id, padding="post") 
+            input_ids = input_ids[0]
+
+        if any(isinstance(i, list) for i in labels_spetok) == False:
+            input_labels = pad_sequences([ labels_spetok ] , maxlen=max_length, value=0, padding="post")
+            input_labels = input_labels[0]
+        else:
+            padding_length = max_length - len(labels_spetok)
+            padding = [ [0.0,0.0] ]  * padding_length
+            input_labels = labels_spetok + padding
+            # Change dtype of list here
+
+            input_labels = np.array( input_labels )
+
+        input_pos = pad_sequences([ pos_spetok ] , maxlen=max_length, value=0, padding="post")
+        input_pos = input_pos[0]
+
+
+        assert len( input_ids ) == len( input_labels ) == len( input_pos )

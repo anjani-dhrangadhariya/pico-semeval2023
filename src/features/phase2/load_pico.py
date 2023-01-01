@@ -1,15 +1,23 @@
 # generic imports
+import ast
 import os
 import random
-import pandas as pd
-import numpy as np
-import torch
 import re
-import ast
 
+import numpy as np
+import pandas as pd
+import torch
 from mysutils.text import remove_urls
+from sklearn.preprocessing import Binarizer
+from spacy.glossary import GLOSSARY
+lookup_dict = GLOSSARY
 
 from arguments import getArguments
+
+# converts POS tags to numeric values
+pos_2_num = dict( zip(lookup_dict.keys(), [*range(len(lookup_dict))]) )
+def pos_2_numeric(pos_ent):
+    return [pos_2_num[i] for i in pos_ent]
 
 #  Seed everything
 def seed_everything( seed ):
@@ -25,11 +33,19 @@ def seed_everything( seed ):
 # get arguments
 args = getArguments() # get all the experimental arguments
 
+# convert strings to lists
+def str_2_list(x):
 
-# preprocess 
+    if isinstance(x, str):
+        return ast.literal_eval(x)
+    else:
+        x
+
+# preprocess URLs
 def preprocess_urls(tokens):
 
-    tokens = ast.literal_eval( tokens )
+    if type(tokens) == str:
+        tokens = ast.literal_eval( tokens )
 
     # Scheme (HTTP, HTTPS, FTP and SFTP):
     regex = r'(?:(https?|s?ftp):\/\/)?'
@@ -55,13 +71,27 @@ def load_data(input_directory):
     val = 'st2_val_preprocessed.tsv'
 
     train_df = pd.read_csv(f'{input_directory}/{train}', sep='\t')
-    val_df = pd.read_csv(f'{input_directory}/{val}', sep='\t')
+    val_df = pd.read_csv(f'{input_directory}/{val}', sep='\t') 
 
-    # convert strings to lists
-    
+    # convert strings to Lists
+    train_df['tokens'] = train_df['tokens'].apply( str_2_list )
+    train_df['labels'] = train_df['labels'].apply( str_2_list )
+    train_df['pos'] = train_df['pos'].apply( str_2_list )
+    train_df['lemma'] = train_df['lemma'].apply( str_2_list )
+
+    val_df['tokens'] = val_df['tokens'].apply( str_2_list )
+    val_df['labels'] = val_df['labels'].apply( str_2_list )
+    val_df['pos'] = val_df['pos'].apply( str_2_list )
+    val_df['lemma'] = val_df['lemma'].apply( str_2_list )
 
     # Remove URLs
     train_df['tokens'] = train_df['tokens'].apply( preprocess_urls )
     val_df['tokens'] = val_df['tokens'].apply( preprocess_urls )
+
+    # Binarize POS tags
+    train_df['pos'] = train_df['pos'].apply( pos_2_numeric )
+    val_df['pos'] = val_df['pos'].apply( pos_2_numeric )
+
+    
 
     return train_df, val_df

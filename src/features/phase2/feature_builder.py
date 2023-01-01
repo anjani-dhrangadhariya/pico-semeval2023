@@ -30,7 +30,7 @@ def build_features():
     print('Tokenizer and model loaded...')
 
     # tokenize and preserve labels
-    transform( train_df, tokenizer, args.max_len, args.embed )
+    transform( train_df, tokenizer, args.max_len, args.embed, args )
 
     return train_df, val_df
 
