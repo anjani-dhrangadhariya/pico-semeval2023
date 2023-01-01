@@ -44,6 +44,19 @@ from transformers import get_linear_schedule_with_warmup
 from transformers import logging
 logging.set_verbosity_error()
 
+def loadModel(model, exp_args):
+
+    if exp_args.parallel == 'true':
+
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model, device_ids = [0, 1])
+            print("Using", str(model.device_ids), " GPUs!")
+            return model
+
+    elif exp_args.parallel == 'false':
+        model = nn.DataParallel(model, device_ids = [0])
+        return model
+
 def convertDf2Tensor(df, data_type):
 
     if data_type==np.float64:
@@ -106,7 +119,44 @@ if __name__ == "__main__":
         createOSL = time.time()
         loaded_model = choose_embed_type.choose_model(exp_args.embed, tokenizer, model, exp_args.model, exp_args)
 
+        # ##################################################################################
+        # # Tell pytorch to run data on this model on the GPU and parallelize it
+        # ##################################################################################
 
+        if exp_args.train_from_scratch == True:
+            model = loadModel(model, exp_args)
+        else:
+            checkpoint = torch.load(exp_args.plugin_model, map_location='cuda:0')
+            model.load_state_dict( checkpoint )
+            model = loadModel(model, exp_args)
+        print('The devices used: ', str(model.device_ids) )
+
+
+        # ##################################################################################
+        # # Note: AdamW is a class from the huggingface library (as opposed to pytorch) 
+        optimizer = AdamW(model.parameters(),
+                        lr = exp_args.lr, # args.learning_rate - default is 5e-5 (for BERT-base)
+                        eps = exp_args.eps, # args.adam_epsilon  - default is 1e-8.
+                        )
+
+        # Total number of training steps is number of batches * number of epochs.
+        total_steps = len(train_dataloader) * exp_args.max_eps
+        print('Total steps per epoch: ', total_steps)
+
+        # Create the learning rate scheduler.
+        scheduler = get_linear_schedule_with_warmup(optimizer, 
+                                                    num_warmup_steps=total_steps*exp_args.lr_warmup,
+                                                    num_training_steps = total_steps)
+
+        # print("Created the optimizer, scheduler and loss function objects in {} seconds".format(time.time() - st))
+        print("--- Took %s seconds to create the model, optimizer, scheduler and loss function objects ---" % (time.time() - createOSL))
+
+        # print('##################################################################################')
+        # print('Begin training...')
+        # print('##################################################################################')
+        train_start = time.time()
+        saved_models = train(model, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
+        print("--- Took %s seconds to train and evaluate the model ---" % (time.time() - train_start))
 
 
 
