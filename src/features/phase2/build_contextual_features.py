@@ -8,9 +8,6 @@ from keras.preprocessing.sequence import pad_sequences
 # load arguments
 args = getArguments() # get all the experimental arguments
 
-# load tokenizer
-tokenizer, _ = choose_tokenizer_type( args.embed )
-
 def tokenize_and_preserve_labels(sentence, text_labels, pos, tokenizer):
 
     tokenized_sentence = []
