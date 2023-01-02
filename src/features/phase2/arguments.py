@@ -32,7 +32,7 @@ def getArguments():
     parser.add_argument('-max_len', type = int, default=512)
     parser.add_argument('-num_labels', type = int, default = 4) # 2 for binary (O-span vs. P/I/O) classification, 5 for multiclass (PICO) classification
 
-    parser.add_argument('-embed', type = str, default = 'pubmedbert') # embed = {roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
+    parser.add_argument('-embed', type = str, default = 'roberta') # embed = {roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
     parser.add_argument('-model', type = str, default = 'transformercrf') # model = {transformercrf, transformerlinear} 
     parser.add_argument('-bidrec', type = str, default=True)
 
