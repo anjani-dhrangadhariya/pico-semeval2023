@@ -84,78 +84,50 @@ class TRANSFORMERCRF(nn.Module):
         # log reg
         self.hidden2tag = nn.Linear(768, exp_args.num_labels)
 
+        # crf
+        self.crf_layer = CRF(exp_args.num_labels, batch_first=True)
+
         # loss calculation
         self.loss_fct = nn.CrossEntropyLoss()
 
     
     def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, mode = None, args = None):
 
-        # Transformer
+        # SCIBERT
         outputs = self.transformer_layer(
             input_ids,
             attention_mask = attention_mask
         )
-        # print('Shape of the transformer output: ', len(outputs))
 
-        # output 0 = batch size 6, tokens MAX_LEN, each token dimension 768 [CLS] token
+        # output 0 = batch size 6, tokens 512, each token dimension 768 [CLS] token
         # output 1 = batch size 6, each token dimension 768
         # output 2 = layers 13, batch 6 (hidden states), tokens 512, each token dimension 768
-        sequence_output = outputs[0]
-        # print('Shape of the output 0 : ', sequence_output.shape)
-
+        sequence_output = outputs[0] 
+        
         # mask the unimportant tokens before log_reg
-        if mode == 'test' or args.supervision == 'fs':
-            mask = (
-                (input_ids != self.tokenizer.pad_token_id)
-                & (input_ids != self.tokenizer.convert_tokens_to_ids(self.tokenizer.cls_token))
-                & (input_ids != self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token))
-                & (labels != 100)
-            )
-        else:
-            mask = (
-                (input_ids != self.tokenizer.pad_token_id)
-                & (input_ids != self.tokenizer.convert_tokens_to_ids(self.tokenizer.cls_token))
-                & (input_ids != self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token))
-                & (labels != [100.00, 100.00] )
-            )
-
-        # print( 'Mask before expansion: ', mask.shape )
+        mask = (
+            (input_ids != self.tokenizer.pad_token_id)
+            & (input_ids != self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token))
+            & (labels != 100)
+        )
         mask_expanded = mask.unsqueeze(-1).expand(sequence_output.size())
-        # print( 'Mask after expansion: ', mask_expanded.shape )
-
         sequence_output *= mask_expanded.float()
-        # print( 'Masked transformer output: ', sequence_output.shape )
+        labels *= mask.long()
 
-        if mask.shape == labels.shape:
-            labels_masked = labels * mask.long()
-        else:
-            label_masks_expanded = mask.unsqueeze(-1).expand(labels.size())
-            labels_masked = labels * label_masks_expanded.long()
-        # print( 'Masked labels output: ', labels_masked.shape )
-
-        # linear layer (log reg) to emit class probablities
+        # log reg
         probablities = F.relu ( self.hidden2tag( sequence_output ) )
-        # print( 'probablities: ', probablities.shape )
         probablities_mask_expanded = mask.unsqueeze(-1).expand(probablities.size())
         probablities_masked = probablities * probablities_mask_expanded.float()
-        # print( 'probablities masked: ', probablities_masked.shape )
 
-        cumulative_loss = torch.cuda.FloatTensor([0.0]) 
+        # CRF emissions
+        loss = self.crf_layer(probablities, labels, reduction='token_mean', mask = mask)
 
-        for i in range(0, probablities.shape[0]):
+        emissions_ = self.crf_layer.decode( probablities , mask = None)
+        emissions = [item for sublist in emissions_ for item in sublist] # flatten the nest list of emissions
 
-            if probablities_masked[i].shape == labels_masked[i].shape:
-                loss = cross_entropy_with_probs(input = probablities_masked[i], target = labels_masked[i], reduction = "mean" )
-                cumulative_loss += loss
-            else:
-                # print('Normal loss......')
-                loss = self.loss_fct( probablities_masked[i] , labels_masked[i]  )
-                cumulative_loss += loss
+        target_emissions = torch.zeros(probablities.shape[0], probablities.shape[1])
+        target_emissions = target_emissions.cuda()
+        for eachIndex in range( target_emissions.shape[0] ):
+            target_emissions[ eachIndex, :torch.tensor( emissions_[eachIndex] ).shape[0] ] = torch.tensor( emissions_[eachIndex] )
         
-        average_loss = cumulative_loss /  probablities.shape[0]
-
-        if mode == 'test' or args.supervision == 'fs':
-            # print('Returning normal loss...')
-            return average_loss, probablities, probablities_mask_expanded, labels, mask, mask
-        else:
-            return average_loss, probablities, probablities_mask_expanded, labels, label_masks_expanded, mask
+        return loss, target_emissions, probablities_mask_expanded, labels, mask, mask
