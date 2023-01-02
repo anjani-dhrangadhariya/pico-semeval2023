@@ -96,10 +96,13 @@ class TRANSFORMERCRF(nn.Module):
             attention_mask = attention_mask
         )
 
+        # print('Shape of the transformer output: ', len(outputs))
+
         # output 0 = batch size 6, tokens MAX_LEN, each token dimension 768 [CLS] token
         # output 1 = batch size 6, each token dimension 768
         # output 2 = layers 13, batch 6 (hidden states), tokens 512, each token dimension 768
         sequence_output = outputs[0]
+        # print('Shape of the output 0 : ', sequence_output.shape)
 
         # mask the unimportant tokens before log_reg
         if mode == 'test' or args.supervision == 'fs':
@@ -117,19 +120,26 @@ class TRANSFORMERCRF(nn.Module):
                 & (labels != [100.00, 100.00] )
             )
 
+        # print( 'Mask before expansion: ', mask.shape )
         mask_expanded = mask.unsqueeze(-1).expand(sequence_output.size())
+        # print( 'Mask after expansion: ', mask_expanded.shape )
+
         sequence_output *= mask_expanded.float()
+        # print( 'Masked transformer output: ', sequence_output.shape )
 
         if mask.shape == labels.shape:
             labels_masked = labels * mask.long()
         else:
             label_masks_expanded = mask.unsqueeze(-1).expand(labels.size())
             labels_masked = labels * label_masks_expanded.long()
+        # print( 'Masked labels output: ', labels_masked.shape )
 
         # linear layer (log reg) to emit class probablities
         probablities = F.relu ( self.hidden2tag( sequence_output ) )
+        # print( 'probablities: ', probablities.shape )
         probablities_mask_expanded = mask.unsqueeze(-1).expand(probablities.size())
         probablities_masked = probablities * probablities_mask_expanded.float()
+        # print( 'probablities masked: ', probablities_masked.shape )
 
         cumulative_loss = torch.cuda.FloatTensor([0.0]) 
 
@@ -139,12 +149,14 @@ class TRANSFORMERCRF(nn.Module):
                 loss = cross_entropy_with_probs(input = probablities_masked[i], target = labels_masked[i], reduction = "mean" )
                 cumulative_loss += loss
             else:
+                # print('Normal loss......')
                 loss = self.loss_fct( probablities_masked[i] , labels_masked[i]  )
                 cumulative_loss += loss
         
         average_loss = cumulative_loss /  probablities.shape[0]
 
         if mode == 'test' or args.supervision == 'fs':
+            # print('Returning normal loss...')
             return average_loss, probablities, probablities_mask_expanded, labels, mask, mask
         else:
             return average_loss, probablities, probablities_mask_expanded, labels, label_masks_expanded, mask

@@ -21,18 +21,23 @@ def getArguments():
 
     parser.add_argument('-use_lemma', type = bool, default= False)
 
-    parser.add_argument('-supervision', type = str, default = 'ws') # label_type = {fs, ws, hs, ...} 
+    parser.add_argument('-supervision', type = str, default = 'fs') # label_type = {fs, ws, hs, ...} 
+    parser.add_argument('-train_from_scratch', type = str, default=True)
+
     parser.add_argument('-entity', type = str, default = 'participant') # participant, intervention, outcome, study type
     parser.add_argument('-data_dir', type = Path, default = '/mnt/nas2/data/systematicReview/semeval2023/data/preprocessed')
 
     parser.add_argument('-label_type', type = str, default = 'seq_lab') # label_type = {seq_lab, BIO, BIOES, ...} 
 
     parser.add_argument('-max_len', type = int, default=512)
-    parser.add_argument('-num_labels', type = int, default = 2) # 2 for binary (O-span vs. P/I/O) classification, 5 for multiclass (PICO) classification
+    parser.add_argument('-num_labels', type = int, default = 4) # 2 for binary (O-span vs. P/I/O) classification, 5 for multiclass (PICO) classification
 
-    parser.add_argument('-embed', type = str, default = 'bert') # embed = {roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
+    parser.add_argument('-embed', type = str, default = 'pubmedbert') # embed = {roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
     parser.add_argument('-model', type = str, default = 'transformercrf') # model = {transformercrf, transformerlinear} 
     parser.add_argument('-bidrec', type = str, default=True)
+
+    parser.add_argument('-print_every', type = int, default= 100)
+    parser.add_argument('-mode', type = str, default= "train")
 
     parser.add_argument('-max_eps', type = int, default= 15)
     parser.add_argument('-loss', type = str, default = 'general')
@@ -44,9 +49,6 @@ def getArguments():
 
     parser.add_argument('-parallel', type = str, default = 'false') # false = won't use data parallel
     parser.add_argument('-gpu', type = int, default = device)
-
-    parser.add_argument('-print_every', type = int, default= 100)
-    parser.add_argument('-mode', type = str, default= "train")
 
     args = parser.parse_args()
 
