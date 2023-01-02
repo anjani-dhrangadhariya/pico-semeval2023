@@ -95,7 +95,6 @@ class TRANSFORMERCRF(nn.Module):
             input_ids,
             attention_mask = attention_mask
         )
-
         # print('Shape of the transformer output: ', len(outputs))
 
         # output 0 = batch size 6, tokens MAX_LEN, each token dimension 768 [CLS] token

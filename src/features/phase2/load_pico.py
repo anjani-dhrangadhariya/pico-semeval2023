@@ -41,6 +41,9 @@ def process_labels(x):
     for counter, i in enumerate(x):
         if i != picos_mapping[ent] and i != 0:
             x[counter] = 0
+    for counter, i in enumerate(x):
+        if i != 0:
+            x[counter] = 1
 
     return x
 
