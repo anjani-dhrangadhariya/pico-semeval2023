@@ -29,9 +29,20 @@ def seed_everything( seed ):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
+picos_mapping = {'participant': 1, 'intervention':2, 'outcome':3, 'oos':0}
 
 # get arguments
 args = getArguments() # get all the experimental arguments
+
+# process labels for an entity converts all the non-entity labels to 0's 
+def process_labels(x):
+    ent = args.entity
+
+    for counter, i in enumerate(x):
+        if i != picos_mapping[ent] and i != 0:
+            x[counter] = 0
+
+    return x
 
 # convert strings to lists
 def str_2_list(x):
@@ -91,6 +102,10 @@ def load_data(input_directory):
     # Binarize POS tags
     train_df['pos'] = train_df['pos'].apply( pos_2_numeric )
     val_df['pos'] = val_df['pos'].apply( pos_2_numeric )
-    
+
+    # select the entity
+    train_df['labels'] = train_df['labels'].apply( process_labels )
+    val_df['labels'] = val_df['labels'].apply( process_labels )
+   
 
     return train_df, val_df
