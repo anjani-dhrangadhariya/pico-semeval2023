@@ -11,6 +11,8 @@ sys.path.append(path)
 from models.phase2 import transformer_crf, transformer_linear
 from transformer_crf import TRANSFORMERCRF
 from transformer_linear import TRANSFORMERLINEAR
+from transformer_lstm_linear import TRANSFORMERBiLSTMLINEAR
+from transformer_lstmatten_linear import TRANSFORMERAttenLin
 
 import model_tokenizer
 
@@ -38,5 +40,9 @@ def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
         model = TRANSFORMERLINEAR(args.freeze_bert, tokenizer, modelembed, args)
     if chosen_model == 'transformercrf':
         model = TRANSFORMERCRF(args.freeze_bert, tokenizer, modelembed, args)
+    if chosen_model == 'transformerlstmlinear':
+        model = TRANSFORMERBiLSTMLINEAR(args.freeze_bert, tokenizer, modelembed, args)
+    if chosen_model == 'transformerlstmattenlin':
+        model = TRANSFORMERAttenLin(args.freeze_bert, tokenizer, modelembed, args)
 
     return model
