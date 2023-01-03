@@ -201,8 +201,7 @@ def transform(df, tokenizer, max_length, pretrained_model, args):
 
         tokens_trans.append( input_ids.squeeze() ) 
         labels_trans.append( input_labels.squeeze() ) 
-        pos_trans.append( attention_masks.squeeze() ) 
-        masks_trans.append( input_pos.squeeze() ) 
-
+        pos_trans.append(  input_pos.squeeze() ) 
+        masks_trans.append( attention_masks.squeeze() )  
 
     return tokens_trans, labels_trans, pos_trans, masks_trans
