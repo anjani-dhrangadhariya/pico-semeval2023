@@ -67,13 +67,15 @@ def get_packed_padded_output(b_sequence_output, b_input_mask, tokenizer):
     return packed_input, perm_idx, seq_lengths
 
 
-def get_packed_padded_output_dataparallel(b_sequence_output, b_input_ids, b_input_mask, tokenizer):
+def get_packed_padded_output_dataparallel(b_sequence_output, b_input_mask):
     
     # Sequence lengths to sort and to let LSTM know what are <PAD> tokens
-    sequence_lengths = b_input_mask.sum(dim = 0) # 0 = PAD, 1 = other
+    sequence_lengths = b_input_mask.sum(dim = 1) # 0 = PAD, 1 = other
+    # print( sequence_lengths )
 
     # Sort masked padded embedding outputs according to sequence length
     seq_lengths, perm_idx = sequence_lengths.sort(0, descending=True)
+    # print( seq_lengths )
     b_masked_padded_sorted_output_ = b_sequence_output[perm_idx]
 
     # Get full length of the sequence
