@@ -104,9 +104,16 @@ if __name__ == "__main__":
             elif exp_args.supervision == 'fs': 
                 dev_input_labels = convertDf2Tensor( val_df['label_pads'], np.int64)
             dev_attn_masks = convertDf2Tensor( val_df['attn_masks'], np.int64)
-            dev_pos_tags = convertDf2Tensor( val_df['attn_masks'], np.int64)
+            dev_pos_tags = convertDf2Tensor( val_df['inputpos'], np.int64)
             print( 'Tensors loaded...' )
 
+            # # ----------------------------------------------------------------------------------------
+            # # One-hot encode POS tags
+            # # ----------------------------------------------------------------------------------------
+            train_pos_tags = torch.nn.functional.one_hot(train_pos_tags, num_classes= - 1)
+            dev_pos_tags = torch.nn.functional.one_hot(dev_pos_tags, num_classes= - 1)
+            print( 'train_pos_tags', train_pos_tags.shape )
+            print( 'dev_pos_tags', dev_pos_tags.shape )
 
             # # ----------------------------------------------------------------------------------------
             # # Create dataloaders from the tensors
