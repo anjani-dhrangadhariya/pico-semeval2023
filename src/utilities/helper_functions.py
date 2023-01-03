@@ -51,7 +51,7 @@ from transformers import BertModel, BertTokenizer, BertConfig, BertForTokenClass
 from transformers import AdamW, BertConfig 
 from transformers import get_linear_schedule_with_warmup
 
-def get_packed_padded_output(b_sequence_output, b_input_ids, b_input_mask, tokenizer):
+def get_packed_padded_output(b_sequence_output, b_input_mask, tokenizer):
     
     # Sequence lengths to sort and to let LSTM know what are <PAD> tokens
     sequence_lengths = b_input_mask.sum(dim = 1) # 0 = PAD, 1 = other
@@ -62,7 +62,7 @@ def get_packed_padded_output(b_sequence_output, b_input_ids, b_input_mask, token
 
     # Pack the sorted masked padded output for input to the LSTM layer
     packed_input = pack_padded_sequence(b_masked_padded_sorted_output_, seq_lengths.cpu(), batch_first=True)
-    # packed_input.to(f'cuda:{model.device_ids[0]}')
+    # For LSTMs dummy labels (BERT tokenized subwords marked with 100) are not masked
 
     return packed_input, perm_idx, seq_lengths
 
