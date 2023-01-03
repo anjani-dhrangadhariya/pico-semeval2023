@@ -1,18 +1,21 @@
 # Transformers 
 import sys
+path = '/home/anjani/pico-semeval2023/src/models/phase2'
+sys.path.append(path)
 
 
 from transformers import (AutoConfig, AutoModel,
                           AutoModelForTokenClassification, AutoModelWithLMHead,
                           AutoTokenizer)
 
-path = '/home/anjani/pico-semeval2023/src/models/phase2'
-sys.path.append(path)
+
 from models.phase2 import transformer_crf, transformer_linear
 from transformer_crf import TRANSFORMERCRF
 from transformer_linear import TRANSFORMERLINEAR
 from transformer_lstm_linear import TRANSFORMERBiLSTMLINEAR
 from transformer_lstmatten_linear import TRANSFORMERAttenLin
+from transformer_posattn_lstm import TRANSFORMERPOSAttenLin
+
 
 import model_tokenizer
 
@@ -44,5 +47,7 @@ def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
         model = TRANSFORMERBiLSTMLINEAR(args.freeze_bert, tokenizer, modelembed, args)
     if chosen_model == 'transformerlstmattnlin':
         model = TRANSFORMERAttenLin(args.freeze_bert, tokenizer, modelembed, args)
+    if chosen_model == 'transformerposlstmattnlin':
+        model = TRANSFORMERPOSAttenLin(args.freeze_bert, tokenizer, modelembed, args)
 
     return model
