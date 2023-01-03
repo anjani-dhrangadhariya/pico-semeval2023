@@ -42,7 +42,7 @@ def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
         model = TRANSFORMERCRF(args.freeze_bert, tokenizer, modelembed, args)
     if chosen_model == 'transformerlstmlinear':
         model = TRANSFORMERBiLSTMLINEAR(args.freeze_bert, tokenizer, modelembed, args)
-    if chosen_model == 'transformerlstmattenlin':
+    if chosen_model == 'transformerlstmattnlin':
         model = TRANSFORMERAttenLin(args.freeze_bert, tokenizer, modelembed, args)
 
     return model
