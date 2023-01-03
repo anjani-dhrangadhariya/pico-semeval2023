@@ -62,6 +62,9 @@ from transformers import (AdamW, AutoModel, AutoModelForTokenClassification,
 
 warnings.filterwarnings('ignore')
 
+# mlflow 
+from utilities.mlflow_logging import *
+
 def printMetrics(cr, args):
 
     if args.num_labels == 5:   
@@ -134,7 +137,11 @@ def evaluate(defModel, optimizer, scheduler, development_dataloader, exp_args, e
             for i in range(0, e_labels.shape[0]):
 
                 # convert continuous probas to classes for b_output and b_labels
-                e_output_class = torch.argmax(e_output[i, ], dim=1)
+                if 'crf' not in exp_args.model:
+                    e_output_class = torch.argmax(e_output[i, ], dim=1)
+                else:
+                    e_output_class = e_output[i, ]
+
                 if mode == 'test' or exp_args.supervision == 'fs':
                     e_label_class = e_labels[i, ]
                 elif exp_args.supervision == 'ws':
@@ -246,7 +253,10 @@ def train(defModel, optimizer, scheduler, train_dataloader, development_dataload
                 for i in range(0, b_labels.shape[0]): # masked select excluding the post padding 
 
                     # convert continuous probas to classes for b_output and b_labels
-                    b_output_class = torch.argmax(b_output[i, ], dim=1)
+                    if 'crf' not in exp_args.model:
+                        b_output_class = torch.argmax(b_output[i, ], dim=1)
+                    else:
+                        b_output_class = b_output[i, ]
                     if exp_args.supervision == 'ws':
                         b_label_class = torch.argmax(b_labels[i, ], dim=1)
                     elif exp_args.supervision == 'fs':
@@ -263,8 +273,11 @@ def train(defModel, optimizer, scheduler, train_dataloader, development_dataload
 
                 if step % exp_args.print_every == 0:
                     cr = sklearn.metrics.classification_report(y_pred= train_epoch_logits_coarse_i, y_true= train_epochs_labels_coarse_i, labels= list(range(exp_args.num_labels)), output_dict=True)
-                    f1, f1_1, f1_2, f1_3 = printMetrics(cr, exp_args)
-                    print('Training: Epoch {} with macro average F1: {}, F1 (Pop): {}, F1 (Int): {}, F1 (Out): {}'.format(epoch_i, f1, f1_1, f1_2, f1_3))
+                    f1, f1_1 = printMetrics(cr, exp_args)
+                    if exp_args.log == True:
+                        logMetrics("train macro f1", f1, epoch_i)
+                        logMetrics(f"train f1 {exp_args.entity}", f1_1, epoch_i)
+                    print('Training: Epoch {} with macro average F1: {}, F1 {}: {}'.format(epoch_i, f1, exp_args.entity, f1_1))
 
 
             ## Calculate the average loss over all of the batches.
@@ -274,9 +287,13 @@ def train(defModel, optimizer, scheduler, train_dataloader, development_dataload
 
             val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm  = evaluate(defModel, optimizer, scheduler, development_dataloader, exp_args, epoch_i)
            
-            val_f1, val_f1_1, val_f1_2, val_f1_3 = printMetrics(val_cr, exp_args)
+            val_f1, val_f1_1 = printMetrics(val_cr, exp_args)
+            if exp_args.log == True:
+                logMetrics("val macro f1", val_f1, epoch_i)
+                logMetrics(f"val f1 {exp_args.entity}", val_f1_1, epoch_i)
+
             string2print = "val f1" + str(exp_args.entity)
-            print('Validation: Epoch {} with macro average F1: {}, F1 (Pop): {}, F1 (Int): {}, F1 (Out): {}'.format(epoch_i, val_f1, val_f1_1, val_f1_2, val_f1_3))
+            print('Validation: Epoch {} with macro average F1: {}, F1 {}: {}'.format(epoch_i, val_f1, exp_args.entity, val_f1_1))
 
             # # Process of saving the model
             if val_f1 > best_f1:
