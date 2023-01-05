@@ -78,6 +78,12 @@ def preprocess_urls(tokens):
 
     return tokens
 
+def preprocess_token_claim_offsets(x):
+
+    dictionary = dict(zip(['N.A.', 'claim_starts', 'claim_ends'], [0, 1, 2, ]))
+
+    return [dictionary[i] for i in x]
+
 # Load dataframe with PICO
 def load_data(input_directory):
 
@@ -92,11 +98,13 @@ def load_data(input_directory):
     train_df['labels'] = train_df['labels'].apply( str_2_list )
     train_df['pos'] = train_df['pos'].apply( str_2_list )
     train_df['lemma'] = train_df['lemma'].apply( str_2_list )
+    train_df['claim_token_offsets'] = train_df['claim_token_offsets'].apply( str_2_list )
 
     val_df['tokens'] = val_df['tokens'].apply( str_2_list )
     val_df['labels'] = val_df['labels'].apply( str_2_list )
     val_df['pos'] = val_df['pos'].apply( str_2_list )
     val_df['lemma'] = val_df['lemma'].apply( str_2_list )
+    val_df['claim_token_offsets'] = val_df['claim_token_offsets'].apply( str_2_list )
 
     # Remove URLs
     train_df['tokens'] = train_df['tokens'].apply( preprocess_urls )
@@ -109,6 +117,9 @@ def load_data(input_directory):
     # select the entity
     train_df['labels'] = train_df['labels'].apply( process_labels )
     val_df['labels'] = val_df['labels'].apply( process_labels )
-   
+
+    # token_claim_offsets to numbers
+    train_df['claim_token_offsets'] = train_df['claim_token_offsets'].apply( preprocess_token_claim_offsets )
+    val_df['claim_token_offsets'] = val_df['claim_token_offsets'].apply( preprocess_token_claim_offsets )
 
     return train_df, val_df
