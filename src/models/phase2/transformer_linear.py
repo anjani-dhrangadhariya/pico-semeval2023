@@ -15,6 +15,8 @@ from multiprocessing import reduction
 import warnings
 
 import sys
+
+from train_pico import constrained_beam_search
 path = '/home/anjani/pico-semeval2023/src/models/phase2'
 sys.path.append(path)
 path = '/home/anjani/pico-semeval2023/src/utilities/'
@@ -88,7 +90,10 @@ class TRANSFORMERLINEAR(nn.Module):
         self.loss_fct = nn.CrossEntropyLoss()
 
     
-    def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, mode = None, args = None):
+    def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, input_offs=None, mode = None, args = None):
+
+        # initialize variables
+        input_offs = input_offs
 
         # Transformer
         outputs = self.transformer_layer(
@@ -128,10 +133,11 @@ class TRANSFORMERLINEAR(nn.Module):
 
         if mask.shape == labels.shape:
             labels_masked = labels * mask.long()
+            offsets_masked = input_offs * mask.long()
         else:
             label_masks_expanded = mask.unsqueeze(-1).expand(labels.size())
             labels_masked = labels * label_masks_expanded.long()
-        # print( 'Masked labels output: ', labels_masked.shape )
+            offsets_masked = input_offs * label_masks_expanded.long()
 
         # linear layer (log reg) to emit class probablities
         probablities = F.relu ( self.hidden2tag( sequence_output ) )
@@ -139,6 +145,7 @@ class TRANSFORMERLINEAR(nn.Module):
         probablities_mask_expanded = mask.unsqueeze(-1).expand(probablities.size())
         probablities_masked = probablities * probablities_mask_expanded.float()
         # print( 'probablities masked: ', probablities_masked.shape )
+
 
         cumulative_loss = torch.cuda.FloatTensor([0.0]) 
 
@@ -148,14 +155,18 @@ class TRANSFORMERLINEAR(nn.Module):
                 loss = cross_entropy_with_probs(input = probablities_masked[i], target = labels_masked[i], reduction = "mean" )
                 cumulative_loss += loss
             else:
-                # print('Normal loss......')
-                loss = self.loss_fct( probablities_masked[i] , labels_masked[i]  )
+                if args.cbs == True:
+                    # calculate loss after CBS TODO: Boolean if else for CBS or not
+                    probas_cbs = constrained_beam_search( probablities_masked[i] , offsets_masked[i] )
+                else: 
+                    probas_cbs = probablities_masked[i]
+
+                loss = self.loss_fct( probas_cbs , labels_masked[i]  )
                 cumulative_loss += loss
         
         average_loss = cumulative_loss /  probablities.shape[0]
 
         if mode == 'test' or args.supervision == 'fs':
-            # print('Returning normal loss...')
             return average_loss, probablities, probablities_mask_expanded, labels, mask, mask
         else:
             return average_loss, probablities, probablities_mask_expanded, labels, label_masks_expanded, mask
