@@ -20,7 +20,7 @@ def getArguments():
     parser.add_argument('-seed', type = int, default= 0)
 
     parser.add_argument('-use_lemma', type = bool, default= False)
-    parser.add_argument('-log', type = bool, default= True)
+    parser.add_argument('-log', type = bool, default= False)
 
     parser.add_argument('-supervision', type = str, default = 'fs') # label_type = {fs, ws, hs, ...} 
     parser.add_argument('-train_from_scratch', type = str, default=True)
@@ -33,14 +33,15 @@ def getArguments():
     parser.add_argument('-max_len', type = int, default=512)
     parser.add_argument('-num_labels', type = int, default = 2) # 2 for binary (O-span vs. P/I/O) classification, 5 for multiclass (PICO) classification
 
-    parser.add_argument('-embed', type = str, default = 'roberta') # embed = {bioredditbert, biomedroberta roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
-    parser.add_argument('-model', type = str, default = 'transformercrf') # model = {transformercrf, transformerlinear} 
+    parser.add_argument('-embed', type = str, default = 'bioredditbert') # embed = {bioredditbert, biomedroberta, roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
+    parser.add_argument('-model', type = str, default = 'transformerlinear') # model = {transformerlinear, transformercrf, transformerlstmlinear, transformerlstmattnlin, transformerposlstmattnlin} 
     parser.add_argument('-bidrec', type = str, default=True)
+    parser.add_argument('-cbs', type=bool, default=False) # Constrained Beam Search 
 
     parser.add_argument('-print_every', type = int, default= 100)
     parser.add_argument('-mode', type = str, default= "train")
 
-    parser.add_argument('-max_eps', type = int, default= 15)
+    parser.add_argument('-max_eps', type = int, default= 10)
     parser.add_argument('-loss', type = str, default = 'general')
     parser.add_argument('-freeze_bert', action='store_false') # store_false = won't freeze BERT
     parser.add_argument('-lr', type = float, default= 5e-4)
