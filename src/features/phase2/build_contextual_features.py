@@ -8,14 +8,15 @@ from keras.preprocessing.sequence import pad_sequences
 # load arguments
 args = getArguments() # get all the experimental arguments
 
-def tokenize_and_preserve_labels(sentence, text_labels, pos, tokenizer):
+def tokenize_and_preserve_labels(sentence, text_labels, pos, claim_offset, tokenizer):
 
     tokenized_sentence = []
     labels = []
     poss = []
     lemmas = []
+    claim_offsets = []
 
-    for word, label, pos_i in zip(sentence, text_labels, pos):
+    for word, label, pos_i, offset_i in zip(sentence, text_labels, pos, claim_offset):
 
         # Tokenize the word and count # of subwords the word is broken into
         tokenized_word = tokenizer.encode(word, add_special_tokens = False)
@@ -28,6 +29,7 @@ def tokenize_and_preserve_labels(sentence, text_labels, pos, tokenizer):
         if n_subwords == 1:
             labels.extend([label] * n_subwords)
             poss.extend( [pos_i] * n_subwords )
+            claim_offsets.extend( [offset_i] * n_subwords )
         elif n_subwords == 0:
             pass
         else:
@@ -39,17 +41,19 @@ def tokenize_and_preserve_labels(sentence, text_labels, pos, tokenizer):
                 labels.extend([label])
                 labels.extend( [dummy_label] * (n_subwords-1) )
                 poss.extend( [pos_i] * n_subwords )
+                claim_offsets.extend( [offset_i] * n_subwords )
             else:
 
                 dummy_label = [100.00, 100.00]
 
                 labels.extend([label])
                 labels.extend( [dummy_label] * (n_subwords-1) )
-                poss.extend( [pos_i] * n_subwords )    
+                poss.extend( [pos_i] * n_subwords ) 
+                claim_offsets.extend( [offset_i] * n_subwords )   
 
-    assert len(tokenized_sentence) == len(labels) == len(poss)
+    assert len(tokenized_sentence) == len(labels) == len(poss) == len(claim_offsets) 
 
-    return tokenized_sentence, labels, poss
+    return tokenized_sentence, labels, poss, claim_offsets
 
 
 ##################################################################################
@@ -120,37 +124,42 @@ def transform(df, tokenizer, max_length, pretrained_model, args):
     labels_trans = []
     pos_trans = []
     masks_trans = []
+    claim_offset_trans = []
 
     if args.use_lemma == True:
         tokens = list(df['lemma'])
     else:
         tokens = list(df['tokens'])
 
-    for tokens, labels, pos in zip( tokens, list(df['labels']), list(df['pos']) ) :
+    for tokens, labels, pos, claim_offset in zip( tokens, list(df['labels']), list(df['pos']), list(df['claim_token_offsets']) ) :
 
         # Tokenize and preserve labels
         if isinstance(tokens, str):
             tokens_ = ast.literal_eval( tokens )
             labels_ = ast.literal_eval( labels )
             pos_ = ast.literal_eval( pos )
+            claim_offset_ = ast.literal_eval( claim_offset )
         else:
             tokens_ = tokens
             labels_ = labels
             pos_ = pos
+            claim_offset_ = claim_offset
 
-        tok_sentence, tok_labels, tok_pos = tokenize_and_preserve_labels(tokens_, labels_, pos_, tokenizer)
-
+        tok_sentence, tok_labels, tok_pos, tok_claim_offset = tokenize_and_preserve_labels(tokens_, labels_, pos_, claim_offset_, tokenizer)
+    
         # Truncate the sequences (sentence and label) to (max_length - 2)
         if max_length >= 510:
             tokens_trunc = truncateSentence(tok_sentence, (max_length - 2))
             labels_trunc = truncateSentence(tok_labels, (max_length - 2))
             pos_trunc = truncateSentence(tok_pos, (max_length - 2))
+            claim_offset_trunc = truncateSentence(tok_claim_offset, (max_length - 2))
             assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc)
         else:
             tokens_trunc = tok_sentence
             labels_trunc = tok_labels
             pos_trunc = tok_pos
-            assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc)
+            claim_offset_trunc = tok_claim_offset
+            assert len(tokens_trunc) == len(labels_trunc) == len(pos_trunc) == len(tok_claim_offset)
 
 
         # Add special tokens CLS and SEP for the BERT tokenizer (identical for SCIBERT)
@@ -165,6 +174,7 @@ def transform(df, tokenizer, max_length, pretrained_model, args):
             labels_spetok = [[0.0,0.0]] + labels_trunc + [[0.0,0.0]]
 
         pos_spetok = addSpecialtokens(pos_trunc, 0, 0)
+        claim_offset_spetok = addSpecialtokens(claim_offset_trunc, 0, 0)
 
 
         # PAD the sequences to max length
@@ -189,19 +199,21 @@ def transform(df, tokenizer, max_length, pretrained_model, args):
         input_pos = pad_sequences([ pos_spetok ] , maxlen=max_length, value=0, padding="post")
         input_pos = input_pos[0]
 
+        input_claim_offset = pad_sequences([ claim_offset_spetok ] , maxlen=max_length, value=0, padding="post")
+        input_claim_offset = input_claim_offset[0]
 
-        assert len( input_ids ) == len( input_labels ) == len( input_pos )
-
+        assert len( input_ids ) == len( input_labels ) == len( input_pos ) == len( input_claim_offset )
 
         # Get the attention masks
         # TODO: Also mask the input ids that have labels [0.5,0.5]
         attention_masks = createAttnMask( [input_ids], [input_labels] ) 
 
-        assert len(input_ids.squeeze()) == len(input_labels.squeeze()) == len(attention_masks.squeeze()) == len(input_pos.squeeze()) == max_length
+        assert len(input_claim_offset.squeeze()) == len(input_ids.squeeze()) == len(input_labels.squeeze()) == len(attention_masks.squeeze()) == len(input_pos.squeeze()) == max_length
 
         tokens_trans.append( input_ids.squeeze() ) 
         labels_trans.append( input_labels.squeeze() ) 
         pos_trans.append(  input_pos.squeeze() ) 
         masks_trans.append( attention_masks.squeeze() )  
+        claim_offset_trans.append( input_claim_offset.squeeze() ) 
 
-    return tokens_trans, labels_trans, pos_trans, masks_trans
+    return tokens_trans, labels_trans, pos_trans, masks_trans, claim_offset_trans

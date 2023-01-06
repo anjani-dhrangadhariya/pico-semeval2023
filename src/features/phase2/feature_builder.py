@@ -30,11 +30,11 @@ def build_features():
     print('Tokenizer and model loaded...')
 
     # Transform data
-    train_toks, train_labs, train_pos, train_masks = transform( train_df, tokenizer, args.max_len, args.embed, args )
-    val_toks, val_labs, val_pos, val_masks = transform( val_df, tokenizer, args.max_len, args.embed, args )
+    train_toks, train_labs, train_pos, train_masks, train_claim_offsets = transform( train_df, tokenizer, args.max_len, args.embed, args )
+    val_toks, val_labs, val_pos, val_masks, val_claim_offsets = transform( val_df, tokenizer, args.max_len, args.embed, args )
 
     # Assign transformed data to OG dataframe
-    train_df = train_df.assign(embeddings = pd.Series(train_toks).values, label_pads = pd.Series(train_labs).values, attn_masks = pd.Series(train_masks).values, inputpos = pd.Series(train_pos).values)
-    val_df = val_df.assign(embeddings = pd.Series(val_toks).values, label_pads = pd.Series(val_labs).values, attn_masks = pd.Series(val_masks).values, inputpos = pd.Series(val_pos).values)
+    train_df = train_df.assign(embeddings = pd.Series(train_toks).values, label_pads = pd.Series(train_labs).values, attn_masks = pd.Series(train_masks).values, inputpos = pd.Series(train_pos).values, inputoffs = pd.Series(train_claim_offsets).values)
+    val_df = val_df.assign(embeddings = pd.Series(val_toks).values, label_pads = pd.Series(val_labs).values, attn_masks = pd.Series(val_masks).values, inputpos = pd.Series(val_pos).values, inputoffs = pd.Series(val_claim_offsets).values)
 
     return train_df, val_df, tokenizer, model

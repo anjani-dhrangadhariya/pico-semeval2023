@@ -84,6 +84,20 @@ def preprocess_token_claim_offsets(x):
 
     return [dictionary[i] for i in x]
 
+def fetch_val():
+
+    train = 'st2_train_preprocessed.tsv'
+    val = 'st2_val_preprocessed.tsv'
+
+    train_df = pd.read_csv(f'{args.data_dir}/{train}', sep='\t')
+    val_df = pd.read_csv(f'{args.data_dir}/{val}', sep='\t') 
+
+    val_df['claim_token_offsets'] = val_df['claim_token_offsets'].apply( str_2_list )
+    val_df['claim_token_offsets'] = val_df['claim_token_offsets'].apply( preprocess_token_claim_offsets )
+
+    return val_df['claim_token_offsets']
+
+
 # Load dataframe with PICO
 def load_data(input_directory):
 
