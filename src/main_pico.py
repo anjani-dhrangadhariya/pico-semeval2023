@@ -97,6 +97,7 @@ if __name__ == "__main__":
                 train_input_labels = convertDf2Tensor(train_df['label_pads'], np.int64)
             train_attn_masks = convertDf2Tensor(train_df['attn_masks'], np.int64)
             train_pos_tags = convertDf2Tensor(train_df['inputpos'], np.int64)
+            train_offsets = convertDf2Tensor(train_df['inputoffs'], np.int64)
 
             dev_input_ids = convertDf2Tensor( val_df['embeddings'], np.int64)
             if exp_args.supervision == 'ws': 
@@ -105,6 +106,7 @@ if __name__ == "__main__":
                 dev_input_labels = convertDf2Tensor( val_df['label_pads'], np.int64)
             dev_attn_masks = convertDf2Tensor( val_df['attn_masks'], np.int64)
             dev_pos_tags = convertDf2Tensor( val_df['inputpos'], np.int64)
+            dev_offsets = convertDf2Tensor(val_df['inputoffs'], np.int64)
             print( 'Tensors loaded...' )
 
             # # ----------------------------------------------------------------------------------------
@@ -112,19 +114,17 @@ if __name__ == "__main__":
             # # ----------------------------------------------------------------------------------------
             train_pos_tags = torch.nn.functional.one_hot(train_pos_tags, num_classes= - 1)
             dev_pos_tags = torch.nn.functional.one_hot(dev_pos_tags, num_classes= - 1)
-            print( 'train_pos_tags', train_pos_tags.shape )
-            print( 'dev_pos_tags', dev_pos_tags.shape )
 
             # # ----------------------------------------------------------------------------------------
             # # Create dataloaders from the tensors
             # # ----------------------------------------------------------------------------------------
             # # Create the DataLoader for our training set.
-            train_data = TensorDataset(train_input_ids, train_input_labels, train_attn_masks, train_pos_tags)
+            train_data = TensorDataset(train_input_ids, train_input_labels, train_attn_masks, train_pos_tags, train_offsets)
             train_sampler = RandomSampler(train_data)
             train_dataloader = DataLoader(train_data, sampler=None, batch_size=10, shuffle=False)
 
             # # Create the DataLoader for our validation set.
-            dev_data = TensorDataset(dev_input_ids, dev_input_labels, dev_attn_masks, dev_pos_tags)
+            dev_data = TensorDataset(dev_input_ids, dev_input_labels, dev_attn_masks, dev_pos_tags, dev_offsets)
             dev_sampler = RandomSampler(dev_data)
             dev_dataloader = DataLoader(dev_data, sampler=None, batch_size=10, shuffle=False)
             print( 'Dataloaders loaded...' )
