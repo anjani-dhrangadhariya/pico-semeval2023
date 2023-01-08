@@ -91,7 +91,7 @@ class TRANSFORMERCRF(nn.Module):
         self.loss_fct = nn.CrossEntropyLoss()
 
     
-    def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, mode = None, args = None):
+    def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, input_offs=None,  mode = None, args = None):
 
         # SCIBERT
         outputs = self.transformer_layer(
