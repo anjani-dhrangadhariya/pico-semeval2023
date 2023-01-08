@@ -176,7 +176,7 @@ if __name__ == "__main__":
             # print('Begin training...')
             # print('##################################################################################')
             train_start = time.time()
-            saved_models = train(loaded_model, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
+            saved_models = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
             print("--- Took %s seconds to train and evaluate the model ---" % (time.time() - train_start))
 
 
