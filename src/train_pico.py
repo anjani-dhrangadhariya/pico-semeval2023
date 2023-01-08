@@ -97,9 +97,11 @@ def re_stitch_tokens(tokens, labels, subtoken_dummy = 100):
 def write_preds(input, preds, labs):
 
     write_dir = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions'
+    # replace_func = np.vectorize(lambda x: x.replace('','-'))
+    # input = replace_func(input)
 
     write_np = np.column_stack([input, labs, preds])
-    np.savetxt(f'{write_dir}/inspect_best.tsv', write_np, delimiter='\t', fmt='%s')
+    np.savetxt(f'{write_dir}/inspect_best.tsv', write_np, delimiter=';', fmt='%s')
 
     return None
 
@@ -261,7 +263,7 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
         # Write input IDs and labels down to a file for inspection
         # decode the inputs
 
-        # write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i)
+        write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i)
 
 
     return val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
