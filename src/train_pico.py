@@ -67,6 +67,42 @@ warnings.filterwarnings('ignore')
 # mlflow 
 from utilities.mlflow_logging import *
 
+def re_stitch_tokens(tokens, labels, subtoken_dummy = 100):
+
+    re_stitched = []
+    labels = labels.tolist()
+
+    for i, (t,l) in enumerate(zip(tokens, labels)):
+        if i != len(tokens):
+            if l != subtoken_dummy:
+                re_stitched.append( t )
+            elif l == subtoken_dummy:
+                stitched_token = re_stitched[i-1] + str(t)
+                re_stitched.append( stitched_token )
+
+                for x in range(1, 20):
+                    if labels[i-x] == subtoken_dummy:
+                        re_stitched[i-x] = stitched_token
+                    else:
+                        re_stitched[i-x] = stitched_token
+                        break
+        else:
+            re_stitched.append( t )
+
+    assert len(tokens) == len(labels) == len(re_stitched)
+
+    return np.array(re_stitched)
+
+
+def write_preds(input, preds, labs):
+
+    write_dir = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions'
+
+    write_np = np.column_stack([input, labs, preds])
+    np.savetxt(f'{write_dir}/inspect_best.tsv', write_np, delimiter='\t', fmt='%s')
+
+    return None
+
 def printMetrics(cr, args):
 
     if args.num_labels == 5:   
@@ -114,7 +150,7 @@ def constrained_beam_search(x, cbs_constraints):
     return x
 
 
-def evaluate(defModel, optimizer, scheduler, development_dataloader, exp_args, epoch_number = None, mode=None):
+def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_number = None, mode=None):
     
     print('The mode is: ', mode)
 
@@ -133,6 +169,7 @@ def evaluate(defModel, optimizer, scheduler, development_dataloader, exp_args, e
         eval_epochs_logits_coarse_i = np.empty(1, dtype=np.int64)
         eval_epochs_labels_coarse_i = np.empty(1, dtype=np.int64)
         eval_epochs_cbs_coarse_i = np.empty(1, dtype=np.int64)
+        eval_epochs_inputs_coarse_i = np.empty(1, dtype=np.int64)
 
         class_rep_temp = []
 
@@ -182,19 +219,28 @@ def evaluate(defModel, optimizer, scheduler, development_dataloader, exp_args, e
                 if mode == 'test' or exp_args.supervision == 'fs':
                     e_label_class = e_labels[i, ]
                     e_input_offsets_class = e_input_offsets[i, ]
+                    e_input_ids_class = e_input_ids_[i, ]
+                    
                 elif exp_args.supervision == 'ws':
                     e_label_class = torch.argmax(e_labels[i, ], dim=1)
 
                 selected_preds_coarse = torch.masked_select( e_output_class, e_mask[i, ])
-                selected_labs_coarse = torch.masked_select( e_label_class, e_mask[i, ])
+                selected_preds_coarse = selected_preds_coarse.detach().to("cpu").numpy()
+
                 selected_offs_coarse = torch.masked_select( e_input_offsets_class, e_mask[i, ])
+                selected_offs_coarse = selected_offs_coarse.detach().to("cpu").numpy()                
+
+                # TODO: before masking, convert the ids to tokens
+                original_tokens = defTokenizer.convert_ids_to_tokens(e_input_ids_class)
+                # use e_label_class to re-stitch the tokens
+                e_input_ids_class = re_stitch_tokens(original_tokens, e_label_class)
+                selected_inputs_coarse = e_input_ids_class[e_mask[i, ].detach().to("cpu").numpy()   ]
+
+                selected_labs_coarse = torch.masked_select( e_label_class, e_mask[i, ])
+                selected_labs_coarse = selected_labs_coarse.detach().to("cpu").numpy()
 
                 if selected_preds_coarse.shape != selected_labs_coarse.shape:
                     print( selected_preds_coarse.shape, ' : ', selected_labs_coarse.shape  )
-
-                selected_preds_coarse = selected_preds_coarse.detach().to("cpu").numpy()
-                selected_labs_coarse = selected_labs_coarse.detach().to("cpu").numpy()
-                selected_offs_coarse = selected_offs_coarse.detach().to("cpu").numpy()
 
                 # TODO: Run the Constrained Beam Search here. Add an if statement for CBS or not...
                 if exp_args.cbs == True:
@@ -203,41 +249,8 @@ def evaluate(defModel, optimizer, scheduler, development_dataloader, exp_args, e
                 eval_epochs_logits_coarse_i = np.append(eval_epochs_logits_coarse_i, selected_preds_coarse, 0)
                 eval_epochs_labels_coarse_i = np.append(eval_epochs_labels_coarse_i, selected_labs_coarse, 0)
                 eval_epochs_cbs_coarse_i = np.append( eval_epochs_cbs_coarse_i, selected_offs_coarse, 0 )
+                eval_epochs_inputs_coarse_i = np.append( eval_epochs_inputs_coarse_i, selected_inputs_coarse, 0 )
 
-        #         temp_cr = classification_report(y_pred= masked_preds.cpu(), y_true=masked_labs.cpu(), labels=list(range(exp_args.num_labels)), output_dict=True) 
-        #         class_rep_temp.append(temp_cr['macro avg']['f1-score'])
-
-        #         all_masks.extend( e_mask[i, ] )
-        #         all_GT.extend( e_labels[i, ] )
-        #         all_predictions.extend( e_logits[i, ] )
-        #         all_tokens.extend( e_input_ids[i, ] )          
-
-        # avg_val_loss = mean_loss / len(development_dataloader)
-
-        # # stack the list of tensors into a tensor
-        # all_masks_tens = torch.stack(( all_masks ))
-        # all_GT_tens =  torch.stack(( all_GT ))
-        # all_preds_tens = torch.stack(( all_predictions ))
-        # all_token_tens = torch.stack(( all_tokens ))
-
-        # # mask the prediction tensor
-        # selected_preds_coarse = torch.masked_select( all_preds_tens.to(f'cuda:0'), all_masks_tens )
-        # # mask the label tensor
-        # selected_labs_coarse = torch.masked_select( all_GT_tens.to(f'cuda:0'), all_masks_tens )
-        # # mask the natural language token tensor but with attention mask carefully
-        # selected_tokens_coarse = torch.masked_select( all_token_tens.to(f'cuda:0'), all_masks_tens )   
-
-        # # flatten the masked tensors
-        # all_pred_flat = flattenIt( selected_preds_coarse )
-        # # all_pred_flat = np.asarray(selected_preds_coarse.cpu(), dtype=np.float32).flatten()
-        # all_GT_flat = flattenIt( selected_labs_coarse )
-        # # all_GT_flat = np.asarray(selected_labs_coarse.cpu(), dtype=np.float32).flatten()
-        # all_tokens_flat = flattenIt( selected_tokens_coarse )
-        # # all_tokens_flat = np.asarray(selected_tokens_coarse.cpu(), dtype=np.int64).flatten()
-
-        # Final classification report and confusion matrix for each epoch
-        # print( len( eval_epochs_logits_coarse_i ) )
-        # print( len( eval_epochs_cbs_coarse_i ) )
 
         val_cr = classification_report(y_pred= eval_epochs_logits_coarse_i, y_true=eval_epochs_labels_coarse_i, labels=list(range(exp_args.num_labels)), output_dict=True, digits=4)
 
@@ -245,11 +258,17 @@ def evaluate(defModel, optimizer, scheduler, development_dataloader, exp_args, e
         labels = [0, 1]
         cm = confusion_matrix(eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, labels, normalize=None)
 
+        # Write input IDs and labels down to a file for inspection
+        # decode the inputs
+
+        # write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i)
+
+
     return val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
 
                                 
 # Train
-def train(defModel, optimizer, scheduler, train_dataloader, development_dataloader, exp_args):
+def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, development_dataloader, exp_args):
 
     torch.autograd.set_detect_anomaly(True)
 
@@ -335,7 +354,7 @@ def train(defModel, optimizer, scheduler, train_dataloader, development_dataload
 
             train_cr = classification_report(y_pred= train_epoch_logits_coarse_i, y_true=train_epochs_labels_coarse_i, labels= list(range(exp_args.num_labels)), output_dict=True, digits=4)             
 
-            val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm  = evaluate(defModel, optimizer, scheduler, development_dataloader, exp_args, epoch_i)
+            val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm  = evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_i)
            
             val_f1, val_f1_1 = printMetrics(val_cr, exp_args)
             if exp_args.log == True:
@@ -347,9 +366,9 @@ def train(defModel, optimizer, scheduler, train_dataloader, development_dataload
 
              # If this is the last epoch then print the classification metrics
             if epoch_i == (exp_args.max_eps - 1):
-                print( val_cr['macro avg']['precision'], ',', val_cr['macro avg']['recall'], ',', val_cr['macro avg']['f1-score']
-                , ',', val_cr['1']['precision'], ',', val_cr['1']['recall'], ',', val_cr['1']['f1-score']
-                , ',', val_cr['0']['precision'], ',', val_cr['0']['recall'], ',', val_cr['0']['f1-score'] )
+                print( round(val_cr['macro avg']['precision'], 4), ',', round(val_cr['macro avg']['recall'], 4), ',', round(val_cr['macro avg']['f1-score'], 4)
+                , ',', round(val_cr['1']['precision'], 4), ',', round(val_cr['1']['recall'], 4), ',', round(val_cr['1']['f1-score'], 4)
+                , ',', round(val_cr['0']['precision'], 4), ',', round(val_cr['0']['recall'], 4), ',', round(val_cr['0']['f1-score'], 4) )
 
             # # Process of saving the model
             if val_f1 > best_f1:
