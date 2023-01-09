@@ -196,18 +196,6 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
 
             e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, mode = mode, args = exp_args) 
 
-            # # shorten the input_ids to match the e_output shape (This is to retrieve the natural langauge words from the input IDs)
-            # e_input_ids = e_input_ids[:, :e_output.shape[1]]   
-
-            # if len(list( e_output.shape )) > 1:
-            #     if 'crf' not in exp_args.model:
-            #         max_probs = torch.max(e_output, dim=2) # get the highest of two probablities
-            #         e_logits = max_probs.indices
-            #     else:
-            #         e_logits = e_output 
-            # else: 
-            #     e_logits = e_output
-
             mean_loss += abs( torch.mean(e_loss) ) 
 
             for i in range(0, e_labels.shape[0]):
@@ -241,9 +229,6 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
                 selected_labs_coarse = torch.masked_select( e_label_class, e_mask[i, ])
                 selected_labs_coarse = selected_labs_coarse.detach().to("cpu").numpy()
 
-                if selected_preds_coarse.shape != selected_labs_coarse.shape:
-                    print( selected_preds_coarse.shape, ' : ', selected_labs_coarse.shape  )
-
                 # TODO: Run the Constrained Beam Search here. Add an if statement for CBS or not...
                 if exp_args.cbs == True:
                     selected_preds_coarse = constrained_beam_search( selected_preds_coarse, selected_offs_coarse )
@@ -261,9 +246,7 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
         cm = confusion_matrix(eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, labels, normalize=None)
 
         # Write input IDs and labels down to a file for inspection
-        # decode the inputs
-
-        write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i)
+        # write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i)
 
 
     return val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
