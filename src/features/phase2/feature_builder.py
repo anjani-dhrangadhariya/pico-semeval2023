@@ -22,7 +22,7 @@ def build_features():
     # seed 
     seed_everything( int(args.seed) )
 
-    train_df, val_df = load_data(args.data_dir)
+    train_df, val_df, test_df = load_data(args.data_dir)
     print( 'Data loaded...' )
 
     start_feature_transformation = time.time()
@@ -32,9 +32,11 @@ def build_features():
     # Transform data
     train_toks, train_labs, train_pos, train_masks, train_claim_offsets = transform( train_df, tokenizer, args.max_len, args.embed, args )
     val_toks, val_labs, val_pos, val_masks, val_claim_offsets = transform( val_df, tokenizer, args.max_len, args.embed, args )
+    test_toks, test_labs, test_pos, test_masks, test_claim_offsets = transform( test_df, tokenizer, args.max_len, args.embed, args )
 
     # Assign transformed data to OG dataframe
     train_df = train_df.assign(embeddings = pd.Series(train_toks).values, label_pads = pd.Series(train_labs).values, attn_masks = pd.Series(train_masks).values, inputpos = pd.Series(train_pos).values, inputoffs = pd.Series(train_claim_offsets).values)
     val_df = val_df.assign(embeddings = pd.Series(val_toks).values, label_pads = pd.Series(val_labs).values, attn_masks = pd.Series(val_masks).values, inputpos = pd.Series(val_pos).values, inputoffs = pd.Series(val_claim_offsets).values)
+    test_df = test_df.assign(embeddings = pd.Series(test_toks).values, label_pads = pd.Series(test_labs).values, attn_masks = pd.Series(test_masks).values, inputpos = pd.Series(test_pos).values, inputoffs = pd.Series(test_claim_offsets).values)
 
-    return train_df, val_df, tokenizer, model
+    return train_df, val_df, test_df, tokenizer, model
