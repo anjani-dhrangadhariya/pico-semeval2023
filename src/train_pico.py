@@ -349,9 +349,9 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
                     # if exp_args.log == True:
                         # logMetrics("train macro f1", f1, epoch_i)
                         # logMetrics(f"train f1 {exp_args.entity}", f1_1, epoch_i)
-                    if exp_args.entity == 2:
+                    if exp_args.num_labels == 2:
                         print( 'Training: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}'.format( epoch_i, f1[0], f1[1], f1[2] ) )
-                    if exp_args.entity == 4:
+                    if exp_args.num_labels == 4:
                         print( 'Training: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}, F1 (2): {}, F1 (3): {}'.format( epoch_i, f1[0], f1[1], f1[2], f1[3], f1[4] ) )
 
 
@@ -366,14 +366,14 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
             # if exp_args.log == True:
             #     logMetrics("val macro f1", val_f1, epoch_i)
             #     logMetrics(f"val f1 {exp_args.entity}", val_f1_1, epoch_i)
-            if exp_args.entity == 2:
+            if exp_args.num_labels == 2:
                 print( 'Validation: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}'.format( epoch_i, val_f1[0], val_f1[1], val_f1[2] ) )
-            if exp_args.entity == 4:
+            if exp_args.num_labels == 4:
                 print( 'Validation: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}, F1 (2): {}, F1 (3): {}'.format( epoch_i, val_f1[0], val_f1[1], val_f1[2], val_f1[3], val_f1[4] ) )
 
              # If this is the last epoch then print the classification metrics
             if epoch_i == (exp_args.max_eps - 1):
-                print_last_epoch(cr, exp_args)
+                print_last_epoch(val_cr, exp_args)
 
             # # Process of saving the model
             if val_f1[0] > best_f1:
