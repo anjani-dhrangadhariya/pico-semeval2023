@@ -39,7 +39,7 @@ def tokenize_and_preserve_labels(sentence, text_labels, pos, claim_offset, token
                 dummy_label = 100
 
                 labels.extend([label])
-                labels.extend( [dummy_label] * (n_subwords-1) )
+                labels.extend( [dummy_label] * (n_subwords-1) ) # switch from label to dummy label
                 poss.extend( [pos_i] * n_subwords )
                 claim_offsets.extend( [offset_i] * n_subwords )
             else:
@@ -47,7 +47,7 @@ def tokenize_and_preserve_labels(sentence, text_labels, pos, claim_offset, token
                 dummy_label = [100.00, 100.00]
 
                 labels.extend([label])
-                labels.extend( [dummy_label] * (n_subwords-1) )
+                labels.extend( [dummy_label] * (n_subwords-1) ) # switch from label to dummy label
                 poss.extend( [pos_i] * n_subwords ) 
                 claim_offsets.extend( [offset_i] * n_subwords )   
 
@@ -131,7 +131,7 @@ def transform(df, tokenizer, max_length, pretrained_model, args):
     else:
         tokens = list(df['tokens'])
 
-    for tokens, labels, pos, claim_offset in zip( tokens, list(df['labels']), list(df['pos']), list(df['claim_token_offsets']) ) :
+    for tokens, labels, pos, claim_offset in zip( tokens, list(df['labels']), list(df['pos']), list(df['token_claim_offsets']) ) :
 
         # Tokenize and preserve labels
         if isinstance(tokens, str):

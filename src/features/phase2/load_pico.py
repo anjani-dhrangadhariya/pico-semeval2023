@@ -14,6 +14,17 @@ lookup_dict = GLOSSARY
 
 from arguments import getArguments
 
+# lower-casing without altering the Abbreviations
+from lower_caser import SmartLowercase
+lower_caser =  SmartLowercase()
+
+def transform(tokens):
+    tokens_transformed = []
+    for t_i in tokens:
+        t_transformed = lower_caser(t_i)
+        tokens_transformed.append( t_transformed )
+    return tokens_transformed
+
 # converts POS tags to numeric values
 pos_2_num = dict( zip(lookup_dict.keys(), [*range(len(lookup_dict))]) )
 def pos_2_numeric(pos_ent):
@@ -38,12 +49,21 @@ args = getArguments() # get all the experimental arguments
 def process_labels(x):
     ent = args.entity
 
-    for counter, i in enumerate(x):
-        if i != picos_mapping[ent] and i != 0:
-            x[counter] = 0
-    for counter, i in enumerate(x):
-        if i != 0:
-            x[counter] = 1
+    if ent == 'all':
+        # convert all the entities into class 1. 
+        for counter, i in enumerate(x):
+            if i > 0:
+                x[counter] = 1
+    elif ent == 'all_sep':
+        # print( set(list(x)) )
+        x = x
+    else:
+        for counter, i in enumerate(x):
+            if i != picos_mapping[ent] and i != 0:
+                x[counter] = 0
+        for counter, i in enumerate(x):
+            if i != 0:
+                x[counter] = 1
 
     return x
 
@@ -80,7 +100,7 @@ def preprocess_urls(tokens):
 
 def preprocess_token_claim_offsets(x):
 
-    dictionary = dict(zip(['N.A.', 'claim_starts', 'claim_ends'], [0, 1, 2, ]))
+    dictionary = dict(zip(['N.A.', 'claim_starts', 'claim_ends'], [0, 1, 2]))
 
     return [dictionary[i] for i in x]
 
@@ -92,10 +112,10 @@ def fetch_val():
     train_df = pd.read_csv(f'{args.data_dir}/{train}', sep='\t')
     val_df = pd.read_csv(f'{args.data_dir}/{val}', sep='\t') 
 
-    val_df['claim_token_offsets'] = val_df['claim_token_offsets'].apply( str_2_list )
-    val_df['claim_token_offsets'] = val_df['claim_token_offsets'].apply( preprocess_token_claim_offsets )
+    val_df['token_claim_offsets'] = val_df['token_claim_offsets'].apply( str_2_list )
+    val_df['token_claim_offsets'] = val_df['token_claim_offsets'].apply( preprocess_token_claim_offsets )
 
-    return val_df['claim_token_offsets']
+    return val_df['token_claim_offsets']
 
 
 # Load dataframe with PICO
@@ -103,37 +123,58 @@ def load_data(input_directory):
 
     train = 'st2_train_preprocessed.tsv'
     val = 'st2_val_preprocessed.tsv'
+    test = 'st2_test_preprocessed.tsv'
 
     train_df = pd.read_csv(f'{input_directory}/{train}', sep='\t')
     val_df = pd.read_csv(f'{input_directory}/{val}', sep='\t') 
+    test_df = pd.read_csv(f'{input_directory}/{test}', sep='\t') 
 
     # convert strings to Lists
     train_df['tokens'] = train_df['tokens'].apply( str_2_list )
     train_df['labels'] = train_df['labels'].apply( str_2_list )
     train_df['pos'] = train_df['pos'].apply( str_2_list )
     train_df['lemma'] = train_df['lemma'].apply( str_2_list )
-    train_df['claim_token_offsets'] = train_df['claim_token_offsets'].apply( str_2_list )
+    train_df['token_claim_offsets'] = train_df['token_claim_offsets'].apply( str_2_list )
 
     val_df['tokens'] = val_df['tokens'].apply( str_2_list )
     val_df['labels'] = val_df['labels'].apply( str_2_list )
     val_df['pos'] = val_df['pos'].apply( str_2_list )
     val_df['lemma'] = val_df['lemma'].apply( str_2_list )
-    val_df['claim_token_offsets'] = val_df['claim_token_offsets'].apply( str_2_list )
+    val_df['token_claim_offsets'] = val_df['token_claim_offsets'].apply( str_2_list )
+
+    test_df['tokens'] = test_df['tokens'].apply( str_2_list )
+    test_df['labels'] = test_df['labels'].apply( str_2_list )
+    test_df['pos'] = test_df['pos'].apply( str_2_list )
+    test_df['lemma'] = test_df['lemma'].apply( str_2_list )
+    test_df['token_claim_offsets'] = test_df['token_claim_offsets'].apply( str_2_list )
+
+    # smart lower casing
+    train_df['tokens'] = train_df['tokens'].apply( transform )
+    val_df['tokens'] = val_df['tokens'].apply( transform )
+    test_df['tokens'] = test_df['tokens'].apply( transform )
+
+    train_df['lemma'] = train_df['lemma'].apply( transform )
+    val_df['lemma'] = val_df['lemma'].apply( transform )
+    test_df['lemma'] = test_df['lemma'].apply( transform )
 
     # Remove URLs
     train_df['tokens'] = train_df['tokens'].apply( preprocess_urls )
     val_df['tokens'] = val_df['tokens'].apply( preprocess_urls )
+    test_df['tokens'] = test_df['tokens'].apply( preprocess_urls )
 
     # Binarize POS tags
     train_df['pos'] = train_df['pos'].apply( pos_2_numeric )
     val_df['pos'] = val_df['pos'].apply( pos_2_numeric )
+    test_df['pos'] = test_df['pos'].apply( pos_2_numeric )
 
     # select the entity
     train_df['labels'] = train_df['labels'].apply( process_labels )
     val_df['labels'] = val_df['labels'].apply( process_labels )
+    test_df['labels'] = test_df['labels'].apply( process_labels )
 
     # token_claim_offsets to numbers
-    train_df['claim_token_offsets'] = train_df['claim_token_offsets'].apply( preprocess_token_claim_offsets )
-    val_df['claim_token_offsets'] = val_df['claim_token_offsets'].apply( preprocess_token_claim_offsets )
+    train_df['token_claim_offsets'] = train_df['token_claim_offsets'].apply( preprocess_token_claim_offsets )
+    val_df['token_claim_offsets'] = val_df['token_claim_offsets'].apply( preprocess_token_claim_offsets )
+    test_df['token_claim_offsets'] = test_df['token_claim_offsets'].apply( preprocess_token_claim_offsets )
 
-    return train_df, val_df
+    return train_df, val_df, test_df

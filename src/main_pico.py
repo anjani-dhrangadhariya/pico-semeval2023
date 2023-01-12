@@ -44,7 +44,7 @@ from transformers import get_linear_schedule_with_warmup
 from transformers import logging
 logging.set_verbosity_error()
 
-from train_pico import train
+from train_pico import evaluate, train
 
 # Set up the GPU
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
@@ -74,7 +74,6 @@ def convertDf2Tensor(df, data_type):
     else:
         return torch.from_numpy( np.array( list( df ), dtype=data_type ) ).clone().detach()
 
-
 if __name__ == "__main__":
 
     try:
@@ -86,7 +85,7 @@ if __name__ == "__main__":
             exp_args = arguments.getArguments() # get all the experimental arguments
 
             # This is executed after the seed is set because it is imperative to have reproducible data run after shuffle
-            train_df, val_df, tokenizer, model = feature_builder.build_features()
+            train_df, val_df, test_df, tokenizer, model = feature_builder.build_features()
             print( 'Train and validation dataframes loaded...' )
 
             # Convert all inputs, labels, and attentions into torch tensors, the required datatype: torch.int64
@@ -107,17 +106,28 @@ if __name__ == "__main__":
             dev_attn_masks = convertDf2Tensor( val_df['attn_masks'], np.int64)
             dev_pos_tags = convertDf2Tensor( val_df['inputpos'], np.int64)
             dev_offsets = convertDf2Tensor(val_df['inputoffs'], np.int64)
+
+
+            test_input_ids = convertDf2Tensor( test_df['embeddings'], np.int64)
+            if exp_args.supervision == 'ws': 
+                test_input_labels = convertDf2Tensor( test_df['label_pads'], np.float64)
+            elif exp_args.supervision == 'fs': 
+                test_input_labels = convertDf2Tensor( test_df['label_pads'], np.int64)
+            test_attn_masks = convertDf2Tensor( test_df['attn_masks'], np.int64)
+            test_pos_tags = convertDf2Tensor( test_df['inputpos'], np.int64)
+            test_offsets = convertDf2Tensor(test_df['inputoffs'], np.int64)
             print( 'Tensors loaded...' )
 
-            # # ----------------------------------------------------------------------------------------
+            # # ##################################################################################
             # # One-hot encode POS tags
-            # # ----------------------------------------------------------------------------------------
+            # # ##################################################################################
             train_pos_tags = torch.nn.functional.one_hot(train_pos_tags, num_classes= - 1)
             dev_pos_tags = torch.nn.functional.one_hot(dev_pos_tags, num_classes= - 1)
+            test_pos_tags = torch.nn.functional.one_hot(test_pos_tags, num_classes= - 1)
 
-            # # ----------------------------------------------------------------------------------------
+            # # ##################################################################################
             # # Create dataloaders from the tensors
-            # # ----------------------------------------------------------------------------------------
+            # # ##################################################################################
             # # Create the DataLoader for our training set.
             train_data = TensorDataset(train_input_ids, train_input_labels, train_attn_masks, train_pos_tags, train_offsets)
             train_sampler = RandomSampler(train_data)
@@ -127,6 +137,11 @@ if __name__ == "__main__":
             dev_data = TensorDataset(dev_input_ids, dev_input_labels, dev_attn_masks, dev_pos_tags, dev_offsets)
             dev_sampler = RandomSampler(dev_data)
             dev_dataloader = DataLoader(dev_data, sampler=None, batch_size=10, shuffle=False)
+
+            # # Create the DataLoader for our test set.
+            test_data = TensorDataset(test_input_ids, test_input_labels, test_attn_masks, test_pos_tags, test_offsets)
+            test_sampler = RandomSampler(test_data)
+            test_dataloader = DataLoader(test_data, sampler=None, batch_size=10, shuffle=False)
             print( 'Dataloaders loaded...' )
 
             # ##################################################################################
@@ -172,12 +187,28 @@ if __name__ == "__main__":
             if exp_args.log == True:
                 logParams(exp_args)
 
-            # print('##################################################################################')
-            # print('Begin training...')
-            # print('##################################################################################')
+            print('##################################################################################')
+            print('Begin training...')
+            print('##################################################################################')
             train_start = time.time()
             saved_models = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
             print("--- Took %s seconds to train and evaluate the model ---" % (time.time() - train_start))
+
+            print('##################################################################################')
+            print('Begin test...')
+            print('##################################################################################')
+            # Print the experiment details
+            print('The experiment on ', exp_args.entity, ' entity class using ', exp_args.embed, ' running for ', exp_args.max_eps, ' epochs.'  )
+
+            # checkpoint = torch.load(saved_models[-1], map_location='cuda:0')
+            checkpoint = torch.load('/mnt/nas2/results/Results/systematicReview/SemEval2023/models/all/roberta_epoch_0.pth', map_location='cuda:0')
+            model.load_state_dict( checkpoint, strict=False  )
+            model = torch.nn.DataParallel(model, device_ids=[0])
+
+            # print('Applying the best model on test set ...')
+            # test1_cr, all_pred_flat, all_GT_flat, cm1, test1_words, class_rep_temp = evaluate(model, tokenizer, optimizer, scheduler, test_dataloader, exp_args)
+            # print(test1_cr)
+            # print(cm1)
 
 
     except Exception as ex:

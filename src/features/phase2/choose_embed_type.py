@@ -15,6 +15,7 @@ from transformer_linear import TRANSFORMERLINEAR
 from transformer_lstm_linear import TRANSFORMERBiLSTMLINEAR
 from transformer_lstmatten_linear import TRANSFORMERAttenLin
 from transformer_posattn_lstm import TRANSFORMERPOSAttenLin
+from transformer_pos import TRANSFORMERPOS
 
 
 import model_tokenizer
@@ -41,12 +42,19 @@ def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
 
     if chosen_model == 'transformerlinear':
         model = TRANSFORMERLINEAR(args.freeze_bert, tokenizer, modelembed, args)
+
+    if chosen_model == 'transformerpos':
+        model = TRANSFORMERPOS(args.freeze_bert, tokenizer, modelembed, args)
+
     if chosen_model == 'transformercrf':
         model = TRANSFORMERCRF(args.freeze_bert, tokenizer, modelembed, args)
+
     if chosen_model == 'transformerlstmlinear':
         model = TRANSFORMERBiLSTMLINEAR(args.freeze_bert, tokenizer, modelembed, args)
+
     if chosen_model == 'transformerlstmattnlin':
         model = TRANSFORMERAttenLin(args.freeze_bert, tokenizer, modelembed, args)
+        
     if chosen_model == 'transformerposlstmattnlin':
         model = TRANSFORMERPOSAttenLin(args.freeze_bert, tokenizer, modelembed, args)
 

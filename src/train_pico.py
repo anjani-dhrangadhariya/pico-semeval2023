@@ -108,11 +108,28 @@ def write_preds(input, preds, labs):
 def printMetrics(cr, args):
 
     if args.num_labels == 5:   
-        return cr['macro avg']['f1-score'], cr['1']['f1-score'], cr['2']['f1-score'], cr['3']['f1-score'], cr['4']['f1-score']
+        return tuple( [ cr['macro avg']['f1-score'], cr['0']['f1-score'], cr['1']['f1-score'], cr['2']['f1-score'], cr['3']['f1-score'], cr['4']['f1-score'] ] )
     elif args.num_labels == 4:   
-        return cr['macro avg']['f1-score'], cr['1']['f1-score'], cr['2']['f1-score'], cr['3']['f1-score']
+        return tuple( [ cr['macro avg']['f1-score'], cr['0']['f1-score'], cr['1']['f1-score'], cr['2']['f1-score'], cr['3']['f1-score'] ] )
     elif args.num_labels == 2:
-        return cr['macro avg']['f1-score'], cr['1']['f1-score']
+        return tuple( [ cr['macro avg']['f1-score'], cr['0']['f1-score'], cr['1']['f1-score'] ] )
+
+def print_last_epoch(cr, args):
+
+    # print the metrics of the last epoch
+    if args.num_labels == 2:
+        print( round(cr['macro avg']['precision'], 4), ',', round(cr['macro avg']['recall'], 4), ',', round(cr['macro avg']['f1-score'], 4)
+        , ',', round(cr['0']['precision'], 4), ',', round(cr['0']['recall'], 4), ',', round(cr['0']['f1-score'], 4)
+        , ',', round(cr['1']['precision'], 4), ',', round(cr['1']['recall'], 4), ',', round(cr['1']['f1-score'], 4)
+        )
+
+    elif args.num_labels == 4:
+        print( round(cr['macro avg']['precision'], 4), ',', round(cr['macro avg']['recall'], 4), ',', round(cr['macro avg']['f1-score'], 4)
+        , ',', round(cr['0']['precision'], 4), ',', round(cr['0']['recall'], 4), ',', round(cr['0']['f1-score'], 4)
+        , ',', round(cr['1']['precision'], 4), ',', round(cr['1']['recall'], 4), ',', round(cr['1']['f1-score'], 4)
+        , ',', round(cr['2']['precision'], 4), ',', round(cr['2']['recall'], 4), ',', round(cr['2']['f1-score'], 4)
+        , ',', round(cr['3']['precision'], 4), ',', round(cr['3']['recall'], 4), ',', round(cr['3']['f1-score'], 4)
+        )
 
 
 def flattenIt(x):
@@ -278,6 +295,7 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
 
                 b_input_ids = batch[0].to(f'cuda:{defModel.device_ids[0]}')
                 b_labels = batch[1].to(f'cuda:{defModel.device_ids[0]}')
+                # print( torch.unique(b_labels) )
                 b_masks = batch[2].to(f'cuda:{defModel.device_ids[0]}')
                 b_pos = batch[3].to(f'cuda:{defModel.device_ids[0]}')
                 b_input_offs = batch[4].to(f'cuda:{defModel.device_ids[0]}')
@@ -327,11 +345,14 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
 
                 if step % exp_args.print_every == 0:
                     cr = sklearn.metrics.classification_report(y_pred= train_epoch_logits_coarse_i, y_true= train_epochs_labels_coarse_i, labels= list(range(exp_args.num_labels)), output_dict=True)
-                    f1, f1_1 = printMetrics(cr, exp_args)
-                    if exp_args.log == True:
-                        logMetrics("train macro f1", f1, epoch_i)
-                        logMetrics(f"train f1 {exp_args.entity}", f1_1, epoch_i)
-                    print('Training: Epoch {} with macro average F1: {}, F1 {}: {}'.format(epoch_i, f1, exp_args.entity, f1_1))
+                    f1 = printMetrics(cr, exp_args)
+                    # if exp_args.log == True:
+                        # logMetrics("train macro f1", f1, epoch_i)
+                        # logMetrics(f"train f1 {exp_args.entity}", f1_1, epoch_i)
+                    if exp_args.entity == 2:
+                        print( 'Training: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}'.format( epoch_i, f1[0], f1[1], f1[2] ) )
+                    if exp_args.entity == 4:
+                        print( 'Training: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}, F1 (2): {}, F1 (3): {}'.format( epoch_i, f1[0], f1[1], f1[2], f1[3], f1[4] ) )
 
 
             ## Calculate the average loss over all of the batches.
@@ -341,42 +362,35 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
 
             val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm  = evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_i)
            
-            val_f1, val_f1_1 = printMetrics(val_cr, exp_args)
-            if exp_args.log == True:
-                logMetrics("val macro f1", val_f1, epoch_i)
-                logMetrics(f"val f1 {exp_args.entity}", val_f1_1, epoch_i)
-
-            string2print = "val f1" + str(exp_args.entity)
-            print('Validation: Epoch {} with macro average F1: {}, F1 {}: {}'.format(epoch_i, val_f1, exp_args.entity, val_f1_1))
+            val_f1 = printMetrics(val_cr, exp_args)
+            # if exp_args.log == True:
+            #     logMetrics("val macro f1", val_f1, epoch_i)
+            #     logMetrics(f"val f1 {exp_args.entity}", val_f1_1, epoch_i)
+            if exp_args.entity == 2:
+                print( 'Validation: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}'.format( epoch_i, val_f1[0], val_f1[1], val_f1[2] ) )
+            if exp_args.entity == 4:
+                print( 'Validation: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}, F1 (2): {}, F1 (3): {}'.format( epoch_i, val_f1[0], val_f1[1], val_f1[2], val_f1[3], val_f1[4] ) )
 
              # If this is the last epoch then print the classification metrics
             if epoch_i == (exp_args.max_eps - 1):
-                print( round(val_cr['macro avg']['precision'], 4), ',', round(val_cr['macro avg']['recall'], 4), ',', round(val_cr['macro avg']['f1-score'], 4)
-                , ',', round(val_cr['1']['precision'], 4), ',', round(val_cr['1']['recall'], 4), ',', round(val_cr['1']['f1-score'], 4)
-                , ',', round(val_cr['0']['precision'], 4), ',', round(val_cr['0']['recall'], 4), ',', round(val_cr['0']['f1-score'], 4) )
+                print_last_epoch(cr, exp_args)
 
             # # Process of saving the model
-            if val_f1 > best_f1:
+            if val_f1[0] > best_f1:
 
-            #     if exp_args.supervision == 'ws':
-            #         base_path = "/mnt/nas2/results/Results/systematicReview/distant_pico/models/Transformers/" + str(exp_args.supervision) + '/' + str(exp_args.ent) + "/" + str(exp_args.version) + "/" + str(exp_args.exp_level) + "/" + str(exp_args.seed)
-            #         if not os.path.exists( base_path ):
-            #             oldmask = os.umask(000)
-            #             os.makedirs(base_path)
-            #             os.umask(oldmask)
-            #     elif exp_args.supervision == 'fs':
-            #         base_path = "/mnt/nas2/results/Results/systematicReview/distant_pico/models/Transformers/" + str(exp_args.supervision) + '/' + str(exp_args.ent) + "/" + str(exp_args.seed)
-            #         if not os.path.exists( base_path ):
-            #             oldmask = os.umask(000)
-            #             os.makedirs(base_path)
-            #             os.umask(oldmask)
+                if exp_args.supervision == 'fs':
+                    base_path = "/mnt/nas2/results/Results/systematicReview/SemEval2023/models/"
+                    if not os.path.exists( base_path ):
+                        oldmask = os.umask(000)
+                        os.makedirs(base_path)
+                        os.umask(oldmask)
 
 
-                print("Best validation F1 improved from {} to {} ...".format( best_f1, val_f1 ))
-                # model_name_here = base_path + '/' + str(exp_args.embed) + '_epoch_' + str(epoch_i) + '.pth'
-                # print('Saving the best model for epoch {} with mean F1 score of {} '.format(epoch_i, val_f1 )) 
-                # torch.save(defModel.state_dict(), model_name_here/)
-                # best_f1 = val_f1
-                # saved_models.append(model_name_here)
+                print("Best validation F1 improved from {} to {} ...".format( best_f1, val_f1[0] ))
+                model_name_here = base_path + '/' + str(exp_args.entity) + str(exp_args.embed) + '_epoch_' + str(epoch_i) + '.pth'
+                print('Saving the best model for epoch {} with mean F1 score of {} '.format(epoch_i, val_f1[0] )) 
+                torch.save(defModel.state_dict(), model_name_here)
+                best_f1 = val_f1[0]
+                saved_models.append(model_name_here)
 
     return saved_models
