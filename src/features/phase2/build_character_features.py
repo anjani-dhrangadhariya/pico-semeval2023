@@ -3,49 +3,60 @@
 
 import re
 from string import punctuation
-
+import numpy as np
+from keras.preprocessing.sequence import pad_sequences
 
 char_lookup_dict = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'punct', 'num', ' ']
+
+char_lookup_dict = list("""abcdefghijklmnopqrstuvwxyz0123456789,;.!?:'\"/\\|_@#$%^&*~`+-=<>()[]{}""")
+char_lookup_dict.append( ' ' )
+identity_mat = np.identity(len(char_lookup_dict))
+max_length = 1000
+word_max_len = 30
 
 # converts characters to numeric values
 char_2_num = dict( zip(char_lookup_dict, [*range(len(char_lookup_dict))]) )
 
 def char_2_numeric(words):
 
-    characterized_words = []
+    shape = ( len( words ), word_max_len, len( char_lookup_dict ) )
+    words_representation = np.empty( shape , dtype=np.float32)
 
-    for word in words:
+    for counter, word in enumerate(words):
 
-        characterized = []
+        if len( word ) > 25:
+            word = word[:30]
 
-        # check if the word has a punctuation
-        has_punct = any(p in word for p in punctuation)
+        char_word_rep = np.array([identity_mat[char_lookup_dict.index(char.lower())] for char in list(word) if char.lower() in char_lookup_dict], dtype=np.float32)
+        char_word_rep_padded = np.concatenate( (char_word_rep, np.zeros((word_max_len - len(char_word_rep), len(char_lookup_dict)), dtype=np.float32)))
 
-        # check if the word has a number
-        has_number = re.findall('[0-9]+', word)
-        
-        # check if the word has a space
+        char_word_rep_padded = char_word_rep_padded.reshape(1, *char_word_rep_padded.shape) 
+        words_representation = np.append( words_representation, char_word_rep_padded, axis = 0)
 
-        if len(has_number) > 0:
-            for char in word:
-                char = char.lower()
-                if char in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
-                    characterized.append( char_2_num['num'] ) 
+    
+    # Pad sequences to max_length
+    if words_representation.shape[0] > max_length:
+        words_representation = words_representation[:max_length]
+    else:
+        words_representation = np.concatenate( (words_representation, np.zeros( (max_length - len(words_representation), word_max_len, len(char_lookup_dict) ), dtype=np.float32)) )
 
-        elif has_punct == True:
-            for char in word:
-                char = char.lower()
-                if char in punctuation:
-                    characterized.append( char_2_num['punct'] ) 
 
-        else:
-            for char in word:
-                char = char.lower()
-                characterized.append( char_2_num[char] ) 
+    return words_representation
 
-        characterized_words.append( characterized )
 
-    return characterized_words
+def char_2_ortho(words):
+
+    shape = ( len( words ), word_max_len, 4 )
+    words_ortho_representation = np.empty( shape , dtype=np.float32)
+
+    for counter, word in enumerate(words):
+
+        if len( word ) > 25:
+            word = word[:30]
+
+
+
+            
 
 def transform_char(df):
 
@@ -53,6 +64,7 @@ def transform_char(df):
     df['char_encode'] = df.tokens.apply( char_2_numeric )
 
     print( 'Fetched character encodings...' )
+    df['char_ortho'] = df.tokens.apply( char_2_ortho )
 
 
 
