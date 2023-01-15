@@ -94,6 +94,8 @@ def preprocess_urls(tokens):
         for counter, t in enumerate(tokens):
             if 'https' in t:
                 replaced_text = remove_urls(t)
+                if len(replaced_text) == 0:
+                    replaced_text = 'link'
                 tokens[counter] = replaced_text
 
     return tokens

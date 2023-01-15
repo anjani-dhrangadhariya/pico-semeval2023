@@ -107,4 +107,4 @@ def transform_char(df):
     print( 'Fetch the orthographic encodings...' )
     df['char_ortho'] = df.tokens.apply( char_2_ortho )
 
-    return None
+    return df
