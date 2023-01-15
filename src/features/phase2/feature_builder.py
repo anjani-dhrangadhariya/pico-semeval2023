@@ -42,6 +42,9 @@ def build_features():
     test_df = test_df.assign(embeddings = pd.Series(test_toks).values, label_pads = pd.Series(test_labs).values, attn_masks = pd.Series(test_masks).values, inputpos = pd.Series(test_pos).values, inputoffs = pd.Series(test_claim_offsets).values)
 
     # Get Contextual char features and orthographic features
-    transform_char( train_df )
+    print( 'One-hot encode the characters and fetch the orthographic encodings...' )
+    train_df = transform_char( train_df )
+    val_df = transform_char( val_df )
+    test_df = transform_char( test_df )
 
     return train_df, val_df, test_df, tokenizer, model
