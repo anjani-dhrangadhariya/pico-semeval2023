@@ -46,6 +46,33 @@ picos_mapping = {'participant': 1, 'intervention':2, 'outcome':3, 'oos':0}
 args = getArguments() # get all the experimental arguments
 
 # process labels for an entity converts all the non-entity labels to 0's 
+
+
+def process_mtl_labels_fine(x):
+
+    x_all = []
+
+    for i in x:
+        x_all.append( i )
+
+    return pd.Series( x_all )
+
+
+def process_mtl_labels_coarse(x):
+
+    x_all = []
+
+    for i in x:
+        i_coarsed = []
+        for i_i in i:
+            if i_i >= 1 and i_i !=0:
+                i_coarsed.append( 1 )
+            else:
+                i_coarsed.append( 0 )
+        x_all.append( i_coarsed )
+
+    return pd.Series( x_all )
+
 def process_labels(x):
     ent = args.entity
 
@@ -55,7 +82,6 @@ def process_labels(x):
             if i > 0:
                 x[counter] = 1
     elif ent == 'all_sep':
-        # print( set(list(x)) )
         x = x
     else:
         for counter, i in enumerate(x):
@@ -169,10 +195,36 @@ def load_data(input_directory):
     val_df['pos'] = val_df['pos'].apply( pos_2_numeric )
     test_df['pos'] = test_df['pos'].apply( pos_2_numeric )
 
-    # select the entity
-    train_df['labels'] = train_df['labels'].apply( process_labels )
-    val_df['labels'] = val_df['labels'].apply( process_labels )
-    test_df['labels'] = test_df['labels'].apply( process_labels )
+    # for i in train_df['labels']:
+    #     print( set(i) )
+
+    # Process the labels based on the type of model
+    # if mtl: get both coarse and fine labels
+    train_fine_labels = process_mtl_labels_fine( train_df.labels ) # should have 0,1,2,3
+    train_df = train_df.assign( labels_fine = train_fine_labels.values )
+
+    val_fine_labels = process_mtl_labels_fine( val_df.labels )
+    val_df = val_df.assign( labels_fine = val_fine_labels.values )
+
+    test_fine_labels = process_mtl_labels_fine( test_df.labels )
+    test_df = test_df.assign( labels_fine = test_fine_labels.values )
+
+    train_coarse_labels = process_mtl_labels_coarse( train_df.labels ) # should have 0,1,2,3
+    train_df = train_df.assign( labels_coarse = train_coarse_labels.values )
+
+    val_coarse_labels = process_mtl_labels_coarse( val_df.labels )
+    val_df = val_df.assign( labels_coarse = val_coarse_labels.values )
+
+    test_coarse_labels = process_mtl_labels_coarse( test_df.labels )
+    test_df = test_df.assign( labels_coarse = test_coarse_labels.values )
+
+    # select the entity (use labels instead of labels_coarse and labels_fine in case not using MTL)
+    # train_df['labels'] = train_df['labels'].apply( process_labels )
+    # val_df['labels'] = val_df['labels'].apply( process_labels )
+    # test_df['labels'] = test_df['labels'].apply( process_labels )
+
+    for i,j in zip( train_df['labels_coarse'], train_df['labels_fine'] ):
+        print( set(i), set(j) )
 
     # token_claim_offsets to numbers
     train_df['token_claim_offsets'] = train_df['token_claim_offsets'].apply( preprocess_token_claim_offsets )
