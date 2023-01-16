@@ -73,25 +73,53 @@ def process_mtl_labels_coarse(x):
 
     return pd.Series( x_all )
 
+
 def process_labels(x):
     ent = args.entity
 
-    if ent == 'all':
-        # convert all the entities into class 1. 
-        for counter, i in enumerate(x):
-            if i > 0:
-                x[counter] = 1
-    elif ent == 'all_sep':
-        x = x
-    else:
-        for counter, i in enumerate(x):
-            if i != picos_mapping[ent] and i != 0:
-                x[counter] = 0
-        for counter, i in enumerate(x):
-            if i != 0:
-                x[counter] = 1
+    x_all = []
 
-    return x
+    for i in x:
+        i_coarsed = []
+        for counter, i_i in enumerate(i):
+
+            if ent == 'all':
+                if i_i >= 1 and i_i !=0:
+                    i_coarsed.append( 1 )
+                else:
+                    i_coarsed.append( 0 )
+
+            elif ent == 'all_sep':
+                i_coarsed.append( i_i )
+
+            else:
+                if i_i != picos_mapping[ent] and i_i != 0:
+                    i_coarsed.append( 0 )
+                if i_i != 0:
+                    i_coarsed.append( 1 )
+
+        x_all.append( i_coarsed )
+
+    return pd.Series( x_all )
+
+# def process_labels(x):
+#     ent = args.entity
+
+#     if ent == 'all':
+#         # convert all the entities into class 1. 
+#         for counter, i in enumerate(x):
+#             if i > 0:
+#                 x[counter] = 1
+#     elif ent == 'all_sep':
+#         x = x
+#     else:
+#         for counter, i in enumerate(x):
+#             if i != picos_mapping[ent] and i != 0:
+#                 x[counter] = 0
+#         for counter, i in enumerate(x):
+#             if i != 0:
+#                 x[counter] = 1
+#     return x
 
 # convert strings to lists
 def str_2_list(x):
@@ -209,7 +237,8 @@ def load_data(input_directory):
     test_fine_labels = process_mtl_labels_fine( test_df.labels )
     test_df = test_df.assign( labels_fine = test_fine_labels.values )
 
-    train_coarse_labels = process_mtl_labels_coarse( train_df.labels ) # should have 0,1,2,3
+
+    train_coarse_labels = process_mtl_labels_coarse( train_df.labels ) # should have 0,1
     train_df = train_df.assign( labels_coarse = train_coarse_labels.values )
 
     val_coarse_labels = process_mtl_labels_coarse( val_df.labels )
@@ -218,10 +247,16 @@ def load_data(input_directory):
     test_coarse_labels = process_mtl_labels_coarse( test_df.labels )
     test_df = test_df.assign( labels_coarse = test_coarse_labels.values )
 
+
     # select the entity (use labels instead of labels_coarse and labels_fine in case not using MTL)
-    # train_df['labels'] = train_df['labels'].apply( process_labels )
-    # val_df['labels'] = val_df['labels'].apply( process_labels )
-    # test_df['labels'] = test_df['labels'].apply( process_labels )
+    train_labels = process_labels( train_df.labels ) # should have 0,1,2,3
+    train_df = train_df.assign( labels = train_labels.values )
+
+    val_labels = process_labels( val_df.labels )
+    val_df = val_df.assign( labels = val_labels.values )
+
+    test_labels = process_labels( test_df.labels )
+    test_df = test_df.assign( labels = test_labels.values )
 
     for i,j in zip( train_df['labels_coarse'], train_df['labels_fine'] ):
         print( set(i), set(j) )
