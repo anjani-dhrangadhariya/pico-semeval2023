@@ -12,6 +12,8 @@ import sys
 import time
 import traceback
 
+from train_pico_mtl import train_mtl
+
 
 
 path = '/home/anjani/pico-semeval2023/src/features/phase2'
