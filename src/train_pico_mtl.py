@@ -234,7 +234,7 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
 
                 ###############################################################################
                 selected_f_preds = torch.masked_select(e_output_fine[i, ].cuda(), e_mask[i, ])
-                selected_f_labs = torch.masked_select(e_output_fine[i, ].cuda(), e_mask[i, ]) 
+                selected_f_labs = torch.masked_select(e_labels_fine[i, ].cuda(), e_mask[i, ]) 
 
                 e_cr_fine = classification_report(y_pred=selected_f_preds.to("cpu").numpy(), y_true=selected_f_labs.to("cpu").numpy(), labels=list(range(exp_args.num_labels*2)) , output_dict=True)
                 
