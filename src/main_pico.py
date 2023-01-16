@@ -12,7 +12,6 @@ import sys
 import time
 import traceback
 
-from train_pico_mtl import train_mtl
 
 
 
@@ -47,6 +46,7 @@ from transformers import logging
 logging.set_verbosity_error()
 
 from train_pico import evaluate, train
+from train_pico_mtl import train_mtl
 
 # Set up the GPU
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
