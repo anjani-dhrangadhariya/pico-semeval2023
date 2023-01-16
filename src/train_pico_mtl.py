@@ -360,7 +360,7 @@ def train_mtl(defModel, defTokenizer, optimizer, scheduler, train_dataloader, de
            
             val_f1 = printMetrics(val_cr, 2)
             print( 'Validation: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}'.format( epoch_i, val_f1[0], val_f1[1], val_f1[2] ) )
-            val_f1_fine = printMetrics(val_cr, 4)
+            val_f1_fine = printMetrics(val_cr_fine, 4)
             print( 'Validation: Epoch {} with macro average F1 (fine): {}, F1 (0): {}, F1 (1): {}, F1 (2): {}, F1 (3): {}'.format( epoch_i, val_f1_fine[0], val_f1_fine[1], val_f1_fine[2], val_f1_fine[3], val_f1_fine[4] ) )
 
             #  If this is the last epoch then print the classification metrics
