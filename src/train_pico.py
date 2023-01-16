@@ -171,7 +171,8 @@ def constrained_beam_search(x, cbs_constraints):
 
 def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_number = None, mode=None):
     
-    print('The mode is: ', mode)
+    if mode == 'test':
+        print('The mode is: ', mode)
 
     mean_acc = 0
     mean_loss = 0
@@ -192,18 +193,21 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
 
         class_rep_temp = []
 
-        for e_input_ids_, e_labels, e_input_mask, e_input_pos, e_input_offsets in development_dataloader:
+        # for e_input_ids_, e_labels, e_input_mask, e_input_pos, e_input_offsets in development_dataloader:
+        for e_batch in development_dataloader:
 
-            e_input_ids_ = e_input_ids_.to(f'cuda:{defModel.device_ids[0]}')
+            e_input_ids_ = e_batch[0].to(f'cuda:{defModel.device_ids[0]}')
 
             with torch.cuda.device_of(e_input_ids_.data): # why am I cloning this variable?
                 e_input_ids = e_input_ids_.clone()
 
             # load the variables on the device
-            e_input_mask = e_input_mask.to(f'cuda:{defModel.device_ids[0]}')
-            e_labels = e_labels.to(f'cuda:{defModel.device_ids[0]}')
-            e_input_pos = e_input_pos.to(f'cuda:{defModel.device_ids[0]}')
-            e_input_offsets = e_input_offsets.to(f'cuda:{defModel.device_ids[0]}')
+            e_labels = e_batch[1].to(f'cuda:{defModel.device_ids[0]}')
+            e_input_mask = e_batch[2].to(f'cuda:{defModel.device_ids[0]}')
+            e_input_pos = e_batch[3].to(f'cuda:{defModel.device_ids[0]}')
+            e_input_offsets = e_batch[4].to(f'cuda:{defModel.device_ids[0]}')
+            e_input_char = e_batch[5].to(f'cuda:{defModel.device_ids[0]}')
+            e_input_ortho = e_batch[6].to(f'cuda:{defModel.device_ids[0]}')
 
             # print( e_input_ids.shape )
             # print( e_input_mask.shape )
@@ -211,7 +215,10 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
             # print( e_input_pos.shape )
             # print( e_input_offsets.shape )
 
-            e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, mode = mode, args = exp_args) 
+            if 'mtl' in exp_args.model:
+                e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, input_char_encode=e_input_char, input_char_ortho=e_input_ortho, mode = mode, args = exp_args) 
+            else:
+                e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, mode = mode, args = exp_args) 
 
             mean_loss += abs( torch.mean(e_loss) ) 
 
@@ -300,7 +307,13 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
                 b_pos = batch[3].to(f'cuda:{defModel.device_ids[0]}')
                 b_input_offs = batch[4].to(f'cuda:{defModel.device_ids[0]}')
 
-                b_loss, b_output, b_output_masks, b_labels, b_labels_mask, b_mask = defModel(input_ids = b_input_ids, attention_mask=b_masks, labels=b_labels, input_pos=b_pos, input_offs = b_input_offs, args = exp_args)                
+                b_input_char = batch[5].to(f'cuda:{defModel.device_ids[0]}')
+                b_input_ortho = batch[6].to(f'cuda:{defModel.device_ids[0]}')
+
+                if 'mtl' in exp_args.model:
+                    b_loss, b_output, b_output_masks, b_labels, b_labels_mask, b_mask = defModel(input_ids = b_input_ids, attention_mask=b_masks, labels=b_labels, input_pos=b_pos, input_offs = b_input_offs, input_char_encode=b_input_char, input_char_ortho=b_input_ortho, args = exp_args)                
+                else:
+                    b_loss, b_output, b_output_masks, b_labels, b_labels_mask, b_mask = defModel(input_ids = b_input_ids, attention_mask=b_masks, labels=b_labels, input_pos=b_pos, input_offs = b_input_offs, args = exp_args)                
 
                 total_train_loss += abs( torch.mean(b_loss) ) 
 
