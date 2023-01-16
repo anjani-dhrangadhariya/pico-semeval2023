@@ -90,32 +90,34 @@ if __name__ == "__main__":
 
             # Convert all inputs, labels, and attentions into torch tensors, the required datatype: torch.int64
             train_input_ids = convertDf2Tensor(train_df['embeddings'], np.int64)
-            if exp_args.supervision == 'ws': 
-                train_input_labels = convertDf2Tensor(train_df['label_pads'], np.float64)
-            elif exp_args.supervision == 'fs': 
-                train_input_labels = convertDf2Tensor(train_df['label_pads'], np.int64)
+            train_input_labels = convertDf2Tensor(train_df['label_pads'], np.int64)
+            if 'mtl' in exp_args.model: 
+                train_input_labels_fine = convertDf2Tensor(train_df['label_fine_pads'], np.int64)
             train_attn_masks = convertDf2Tensor(train_df['attn_masks'], np.int64)
             train_pos_tags = convertDf2Tensor(train_df['inputpos'], np.int64)
             train_offsets = convertDf2Tensor(train_df['inputoffs'], np.int64)
+            train_char  = convertDf2Tensor(train_df['char_encode'], np.int64)
+            train_ortho  = convertDf2Tensor(train_df['char_ortho'], np.int64)
 
             dev_input_ids = convertDf2Tensor( val_df['embeddings'], np.int64)
-            if exp_args.supervision == 'ws': 
-                dev_input_labels = convertDf2Tensor( val_df['label_pads'], np.float64)
-            elif exp_args.supervision == 'fs': 
-                dev_input_labels = convertDf2Tensor( val_df['label_pads'], np.int64)
+            dev_input_labels = convertDf2Tensor( val_df['label_pads'], np.int64)
+            if 'mtl' in exp_args.model: 
+                dev_input_labels_fine = convertDf2Tensor(val_df['label_fine_pads'], np.int64)
             dev_attn_masks = convertDf2Tensor( val_df['attn_masks'], np.int64)
             dev_pos_tags = convertDf2Tensor( val_df['inputpos'], np.int64)
             dev_offsets = convertDf2Tensor(val_df['inputoffs'], np.int64)
-
+            dev_char  = convertDf2Tensor(val_df['char_encode'], np.int64)
+            dev_ortho  = convertDf2Tensor(val_df['char_ortho'], np.int64)
 
             test_input_ids = convertDf2Tensor( test_df['embeddings'], np.int64)
-            if exp_args.supervision == 'ws': 
-                test_input_labels = convertDf2Tensor( test_df['label_pads'], np.float64)
-            elif exp_args.supervision == 'fs': 
-                test_input_labels = convertDf2Tensor( test_df['label_pads'], np.int64)
+            test_input_labels = convertDf2Tensor( test_df['label_pads'], np.int64)
+            if 'mtl' in exp_args.model: 
+                test_input_labels_fine = convertDf2Tensor(test_df['label_fine_pads'], np.int64)
             test_attn_masks = convertDf2Tensor( test_df['attn_masks'], np.int64)
             test_pos_tags = convertDf2Tensor( test_df['inputpos'], np.int64)
             test_offsets = convertDf2Tensor(test_df['inputoffs'], np.int64)
+            test_char  = convertDf2Tensor(test_df['char_encode'], np.int64)
+            test_ortho  = convertDf2Tensor(test_df['char_ortho'], np.int64)
             print( 'Tensors loaded...' )
 
             # # ##################################################################################
@@ -128,20 +130,19 @@ if __name__ == "__main__":
             # # ##################################################################################
             # # Create dataloaders from the tensors
             # # ##################################################################################
-            # # Create the DataLoader for our training set.
-            train_data = TensorDataset(train_input_ids, train_input_labels, train_attn_masks, train_pos_tags, train_offsets)
-            train_sampler = RandomSampler(train_data)
+            # # Create the DataLoader for our training, validation and test set.
+            if 'mtl' not in exp_args.model:
+                train_data = TensorDataset(train_input_ids, train_input_labels, train_attn_masks, train_pos_tags, train_offsets, train_char, train_ortho)
+                dev_data = TensorDataset(dev_input_ids, dev_input_labels, dev_attn_masks, dev_pos_tags, dev_offsets, dev_char, dev_ortho)
+                test_data = TensorDataset(test_input_ids, test_input_labels, test_attn_masks, test_pos_tags, test_offsets, test_char, test_ortho)
+            elif 'mtl' in exp_args.model:
+                train_data = TensorDataset(train_input_ids, train_input_labels, train_input_labels_fine, train_attn_masks, train_pos_tags, train_offsets, train_char, train_ortho)
+                dev_data = TensorDataset(dev_input_ids, dev_input_labels, dev_input_labels_fine, dev_attn_masks, dev_pos_tags, dev_offsets, dev_char, dev_ortho)
+                test_data = TensorDataset(test_input_ids, test_input_labels, test_input_labels_fine, test_attn_masks, test_pos_tags, test_offsets, test_char, test_ortho)
+
             train_dataloader = DataLoader(train_data, sampler=None, batch_size=10, shuffle=False)
-
-            # # Create the DataLoader for our validation set.
-            dev_data = TensorDataset(dev_input_ids, dev_input_labels, dev_attn_masks, dev_pos_tags, dev_offsets)
-            dev_sampler = RandomSampler(dev_data)
-            dev_dataloader = DataLoader(dev_data, sampler=None, batch_size=10, shuffle=False)
-
-            # # Create the DataLoader for our test set.
-            test_data = TensorDataset(test_input_ids, test_input_labels, test_attn_masks, test_pos_tags, test_offsets)
-            test_sampler = RandomSampler(test_data)
-            test_dataloader = DataLoader(test_data, sampler=None, batch_size=10, shuffle=False)
+            dev_dataloader = DataLoader(dev_data, sampler=None, batch_size=exp_args.batch, shuffle=False)
+            test_dataloader = DataLoader(test_data, sampler=None, batch_size=exp_args.batch, shuffle=False)
             print( 'Dataloaders loaded...' )
 
             # ##################################################################################
@@ -191,7 +192,11 @@ if __name__ == "__main__":
             print('Begin training...')
             print('##################################################################################')
             train_start = time.time()
-            saved_models = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
+            if 'mtl' not in exp_args.model:
+                saved_models = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
+            elif 'mtl' in exp_args.model:
+                saved_models = train_mtl(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
+
             print("--- Took %s seconds to train and evaluate the model ---" % (time.time() - train_start))
 
             print('##################################################################################')
