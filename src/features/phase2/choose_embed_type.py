@@ -17,6 +17,7 @@ from transformer_lstmatten_linear import TRANSFORMERAttenLin
 from transformer_posattn_lstm import TRANSFORMERPOSAttenLin
 from transformer_pos import TRANSFORMERPOS
 from transformer_pos_crf import TRANSFORMERPOSCRF
+from mtl_1 import MTL1
 
 
 import model_tokenizer
@@ -61,5 +62,8 @@ def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
         
     if chosen_model == 'transformerposlstmattnlin':
         model = TRANSFORMERPOSAttenLin(args.freeze_bert, tokenizer, modelembed, args)
+
+    if chosen_model == 'mtl1':
+        model = MTL1(args.freeze_bert, tokenizer, modelembed, args)
 
     return model
