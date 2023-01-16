@@ -33,15 +33,17 @@ def getArguments():
 
     parser.add_argument('-max_len', type = int, default=512)
 
-    parser.add_argument('-embed', type = str, default = 'biomedroberta') # embed = {bioredditbert, biomedroberta, roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
-    parser.add_argument('-model', type = str, default = 'transformerlinear') # model = {transformerpos, transformerlinear, transformercrf, transformerlstmlinear, transformerlstmattnlin, transformerposlstmattnlin} 
+    parser.add_argument('-embed', type = str, default = 'bioredditbert') # embed = {bioredditbert, biomedroberta, roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
+    parser.add_argument('-model', type = str, default = 'mtl1') # model = {transformerpos, transformerposcrf, transformerlinear, transformercrf, transformerlstmlinear, transformerlstmattnlin, transformerposlstmattnlin} 
     parser.add_argument('-bidrec', type = str, default=True)
     parser.add_argument('-cbs', type=bool, default=False) # Constrained Beam Search 
+    parser.add_argument('-pos_encoding', type=str, default='lstm') # onehot, lstm 
 
     parser.add_argument('-print_every', type = int, default= 100)
     parser.add_argument('-mode', type = str, default= "train")
 
-    parser.add_argument('-max_eps', type = int, default= 3)
+    parser.add_argument('-max_eps', type = int, default= 5)
+    parser.add_argument('-batch', type = int, default= 10)
     parser.add_argument('-loss', type = str, default = 'general')
     parser.add_argument('-freeze_bert', action='store_false') # store_false = won't freeze BERT
     parser.add_argument('-lr', type = float, default= 5e-4)
