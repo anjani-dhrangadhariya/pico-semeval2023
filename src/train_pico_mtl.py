@@ -114,16 +114,16 @@ def printMetrics(cr, labels):
     elif labels == 2:
         return tuple( [ cr['macro avg']['f1-score'], cr['0']['f1-score'], cr['1']['f1-score'] ] )
 
-def print_last_epoch(cr, args):
+def print_last_epoch(cr, num_labels):
 
     # print the metrics of the last epoch
-    if args.num_labels == 2:
+    if num_labels == 2:
         print( round(cr['macro avg']['precision'], 4), ',', round(cr['macro avg']['recall'], 4), ',', round(cr['macro avg']['f1-score'], 4)
         , ',', round(cr['0']['precision'], 4), ',', round(cr['0']['recall'], 4), ',', round(cr['0']['f1-score'], 4)
         , ',', round(cr['1']['precision'], 4), ',', round(cr['1']['recall'], 4), ',', round(cr['1']['f1-score'], 4)
         )
 
-    elif args.num_labels == 4:
+    elif num_labels == 4:
         print( round(cr['macro avg']['precision'], 4), ',', round(cr['macro avg']['recall'], 4), ',', round(cr['macro avg']['f1-score'], 4)
         , ',', round(cr['0']['precision'], 4), ',', round(cr['0']['recall'], 4), ',', round(cr['0']['f1-score'], 4)
         , ',', round(cr['1']['precision'], 4), ',', round(cr['1']['recall'], 4), ',', round(cr['1']['f1-score'], 4)
@@ -364,8 +364,9 @@ def train_mtl(defModel, defTokenizer, optimizer, scheduler, train_dataloader, de
             print( 'Validation: Epoch {} with macro average F1 (fine): {}, F1 (0): {}, F1 (1): {}, F1 (2): {}, F1 (3): {}'.format( epoch_i, val_f1_fine[0], val_f1_fine[1], val_f1_fine[2], val_f1_fine[3], val_f1_fine[4] ) )
 
             #  If this is the last epoch then print the classification metrics
-            # if epoch_i == (exp_args.max_eps - 1):
-                # print_last_epoch(val_cr, exp_args)
+            if epoch_i == (exp_args.max_eps - 1):
+                print_last_epoch(val_cr, 2)
+                print_last_epoch(val_cr_fine, 4)
 
             # # Process of saving the model
             if val_f1[0] > best_f1:
