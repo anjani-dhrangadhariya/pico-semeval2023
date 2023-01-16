@@ -15,7 +15,7 @@ identity_mat = np.identity( len(char_lookup_dict) )
 ortho_lookup_dict = list( 'pncC' )
 ortho_identity_mat = np.identity( len(ortho_lookup_dict) )
 
-max_length = 1000
+max_length = 512
 word_max_len = 30
 
 # converts characters to numeric values
@@ -101,10 +101,7 @@ def char_2_ortho(words):
 
 def transform_char(df):
 
-    print( 'One-hot encode the characters...' )
     df['char_encode'] = df.tokens.apply( char_2_numeric )
-
-    print( 'Fetch the orthographic encodings...' )
     df['char_ortho'] = df.tokens.apply( char_2_ortho )
 
     return df
