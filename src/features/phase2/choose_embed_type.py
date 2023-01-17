@@ -17,8 +17,12 @@ from transformer_lstmatten_linear import TRANSFORMERAttenLin
 from transformer_posattn_lstm import TRANSFORMERPOSAttenLin
 from transformer_pos import TRANSFORMERPOS
 from transformer_pos_crf import TRANSFORMERPOSCRF
-from mtl_1 import MTL1
+from mtl_0 import MTL_0
 from mtl_baseline import MTLBASELINE
+from mtl_2 import MTL_2
+from mtl_3 import MTL_3
+from mtl_4 import MTL_4
+from mtl_5 import MTL_5
 
 
 import model_tokenizer
@@ -64,10 +68,22 @@ def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
     if chosen_model == 'transformerposlstmattnlin':
         model = TRANSFORMERPOSAttenLin(args.freeze_bert, tokenizer, modelembed, args)
 
-    if chosen_model == 'mtl1':
-        model = MTL1(args.freeze_bert, tokenizer, modelembed, args)
+    if chosen_model == 'mtl_0':
+        model = MTL_0(args.freeze_bert, tokenizer, modelembed, args)
 
     if chosen_model == 'mtl_baseline':
         model = MTLBASELINE(args.freeze_bert, tokenizer, modelembed, args)
+
+    if chosen_model == 'mtl_2':
+        model = MTL_2(args.freeze_bert, tokenizer, modelembed, args)
+
+    if chosen_model == 'mtl_3':
+        model = MTL_3(args.freeze_bert, tokenizer, modelembed, args)
+
+    if chosen_model == 'mtl_4':
+        model = MTL_4(args.freeze_bert, tokenizer, modelembed, args)
+
+    if chosen_model == 'mtl_5':
+        model = MTL_5(args.freeze_bert, tokenizer, modelembed, args)
 
     return model
