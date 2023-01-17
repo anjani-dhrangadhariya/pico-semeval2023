@@ -70,10 +70,10 @@ from transformers import get_linear_schedule_with_warmup
 from utilities.helper_functions import get_packed_padded_output, get_packed_padded_output_dataparallel
 
 
-class MTL1(nn.Module):
+class MTL_0(nn.Module):
 
     def __init__(self, freeze_bert, tokenizer, model, exp_args):
-        super(MTL1, self).__init__()
+        super(MTL_0, self).__init__()
 
         self.tokenizer = tokenizer
 

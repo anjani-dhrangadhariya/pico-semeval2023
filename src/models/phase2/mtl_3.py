@@ -70,10 +70,10 @@ from transformers import get_linear_schedule_with_warmup
 from utilities.helper_functions import get_packed_padded_output, get_packed_padded_output_dataparallel
 
 
-class MTLBASELINE(nn.Module):
+class MTL_3(nn.Module):
 
     def __init__(self, freeze_bert, tokenizer, model, exp_args):
-        super(MTLBASELINE, self).__init__()
+        super(MTL_3, self).__init__()
 
         self.tokenizer = tokenizer
 
@@ -102,10 +102,20 @@ class MTLBASELINE(nn.Module):
             for p in self.transformer_layer.parameters():
                 p.requires_grad = False
 
+        self.n_conv_filters=256
+        self.conv_out_dim = 1024
+
+        # char layers
+        self.conv1 = nn.Conv1d( ortho_hidden_dim, self.n_conv_filters, kernel_size=7, padding=0)
+        # Max Pooling Layer
+        self.max_pooling_layer = nn.MaxPool1d( 24 )
+        # fc layer
+        self.fc1 = nn.Sequential( nn.Linear( self.n_conv_filters, self.conv_out_dim ) , nn.Dropout(0.5) )
+
         # log reg (for coarse labels)
-        self.hidden2tag = nn.Linear( transformer_dim+pos_dim , exp_args.num_labels)
+        self.hidden2tag = nn.Linear( transformer_dim + pos_dim + self.conv_out_dim , exp_args.num_labels)
         # log reg (for fine labels)
-        self.hidden2tag_fine = nn.Linear(transformer_dim+pos_dim, exp_args.num_labels * 2)
+        self.hidden2tag_fine = nn.Linear(transformer_dim + pos_dim + self.conv_out_dim, exp_args.num_labels * 2)
 
         # loss calculation (for coarse labels)
         self.loss_fct = nn.CrossEntropyLoss()
@@ -125,7 +135,7 @@ class MTLBASELINE(nn.Module):
         # output 0 = batch size 6, tokens MAX_LEN, each token dimension 768 [CLS] token
         sequence_output = outputs[0]
 
-        # combine both transformer output and POS tags
+        # combine both transformer output and POS tags (onehot encoded)
         transform_pos_output = torch.cat( (sequence_output, self.input_pos), 2)
         transform_pos_output = transform_pos_output.cuda()
 
@@ -143,15 +153,47 @@ class MTLBASELINE(nn.Module):
         labels *= mask.long()
         labels_fine *= mask.long()
 
-        # Add POS with transformer embeddings TODO
+        # character CNN
+        # conv layer
+        input_char_ortho_reshaped = input_char_ortho.reshape( input_char_ortho.shape[0], input_char_ortho.shape[1], input_char_ortho.shape[3], input_char_ortho.shape[2] )
+        input_char_ortho_reshaped = input_char_ortho_reshaped.cuda()
+
+        # empty tensor to collect the convolutions
+        batch_conv = torch.empty(size= ( 0, self.max_len, 1024 ))
+        batch_conv = batch_conv.cuda()
+
+        # iterate through each sentence to retrieve the character representation
+        for i in range( input_char_ortho.shape[0] ):
+
+            # print( char_concat_output[i].shape )
+
+            conv1_output = self.conv1( input_char_ortho_reshaped[i].float()  )
+            # print( 'Dimension of the conv1 output: ', conv1_output.shape )
+
+            # GAP
+            max_pool_out = self.max_pooling_layer(conv1_output)
+            # print( 'Dimension of the max_pool_out output: ', max_pool_out.shape )
+                        
+            max_pool_out = max_pool_out.squeeze()
+            # print( 'Dimension of the sentence embeddings: ', max_pool_out.shape )
+
+            # fully connected
+            fc1_output = F.relu ( self.fc1( max_pool_out ) )
+            # print( 'Dimension of the fully connected output: ', fc1_output.shape )
+
+            batch_conv = torch.cat( ( batch_conv, fc1_output.unsqueeze(dim=0) ) )
+
+        # concat conv output with transformer+POS embeddings
+        transform_pos_ortho_output = torch.cat( ( transform_pos_output, batch_conv), 2)
+        transform_pos_ortho_output = transform_pos_ortho_output.cuda()
 
         # linear for coarse
-        probablity = F.relu ( self.hidden2tag( transform_pos_output ) )
+        probablity = F.relu ( self.hidden2tag( transform_pos_ortho_output ) )
         max_probs = torch.max(probablity, dim=2)         
         logits = max_probs.indices
 
         # linear for fine
-        probablity_fine = F.relu ( self.hidden2tag_fine( transform_pos_output ) )
+        probablity_fine = F.relu ( self.hidden2tag_fine( transform_pos_ortho_output ) )
         max_probs_fine = torch.max(probablity_fine, dim=2)
         # logits_fine = max_probs_fine.indices.flatten()
         logits_fine = max_probs_fine.indices

@@ -70,10 +70,10 @@ from transformers import get_linear_schedule_with_warmup
 from utilities.helper_functions import get_packed_padded_output, get_packed_padded_output_dataparallel
 
 
-class MTLBASELINE(nn.Module):
+class MTL_2(nn.Module):
 
     def __init__(self, freeze_bert, tokenizer, model, exp_args):
-        super(MTLBASELINE, self).__init__()
+        super(MTL_2, self).__init__()
 
         self.tokenizer = tokenizer
 
@@ -102,10 +102,18 @@ class MTLBASELINE(nn.Module):
             for p in self.transformer_layer.parameters():
                 p.requires_grad = False
 
-        # log reg (for coarse labels)
-        self.hidden2tag = nn.Linear( transformer_dim+pos_dim , exp_args.num_labels)
-        # log reg (for fine labels)
-        self.hidden2tag_fine = nn.Linear(transformer_dim+pos_dim, exp_args.num_labels * 2)
+        self.lstm_layer = nn.LSTM(input_size = (transformer_dim + pos_dim), hidden_size = ( self.hidden_transformer + self.hidden_pos ) , num_layers = 1, bidirectional=exp_args.bidrec, batch_first=True)
+
+        if 'lstm' in exp_args.pos_encoding:
+            # log reg (for coarse labels)
+            self.hidden2tag = nn.Linear( ( self.hidden_transformer * 2) + ( self.hidden_pos * 2 ) , exp_args.num_labels)
+            # log reg (for fine labels)
+            self.hidden2tag_fine = nn.Linear( ( self.hidden_transformer * 2) + ( self.hidden_pos * 2 ) , exp_args.num_labels * 2)
+        else:
+            # log reg (for coarse labels)
+            self.hidden2tag = nn.Linear( transformer_dim+pos_dim , exp_args.num_labels)
+            # log reg (for fine labels)
+            self.hidden2tag_fine = nn.Linear(transformer_dim+pos_dim, exp_args.num_labels * 2)            
 
         # loss calculation (for coarse labels)
         self.loss_fct = nn.CrossEntropyLoss()
@@ -129,6 +137,22 @@ class MTLBASELINE(nn.Module):
         transform_pos_output = torch.cat( (sequence_output, self.input_pos), 2)
         transform_pos_output = transform_pos_output.cuda()
 
+        # use BiLSTM layer on the concatenated word features
+        if args.pos_encoding == "lstm":
+            packed_input, perm_idx, seq_lengths = get_packed_padded_output(transform_pos_output, attention_mask, self.tokenizer)
+            packed_output, (ht, ct) = self.lstm_layer( packed_input )
+
+            # Unpack and reorder the output
+            output, input_sizes = pad_packed_sequence(packed_output, batch_first=True)
+            _, unperm_idx = perm_idx.sort(0)
+            lstm_output = output[unperm_idx] # lstm_output.shape = shorter than the padded torch.Size([6, 388, 512])
+            seq_lengths_ordered = seq_lengths[unperm_idx]
+            # print( 'Shape of LSTM output: ', lstm_output.shape )
+            
+            # expand the shortened lstm output
+            lstm_repadded = torch.zeros(size= ( lstm_output.shape[0], self.max_len, ( (self.hidden_transformer *2) + (self.hidden_pos*2) ) ))
+            lstm_repadded[ :, :lstm_output.shape[1], :lstm_output.shape[2] ] = lstm_output
+            lstm_repadded = lstm_repadded.cuda()
 
         # mask the unimportant tokens before log_reg (NOTE: CLS token (position 0) is not masked!!!)
         mask = (
@@ -138,20 +162,22 @@ class MTLBASELINE(nn.Module):
         )
 
         # mask the transformer output and labels - coarse and fine
-        mask_expanded = mask.unsqueeze(-1).expand(transform_pos_output.size())
-        transform_pos_output *= mask_expanded.float()
+        if args.pos_encoding == "lstm":
+            mask_expanded = mask.unsqueeze(-1).expand(lstm_repadded.size())
+            masked_output = lstm_repadded * mask_expanded.float()
+        else:
+            mask_expanded = mask.unsqueeze(-1).expand(transform_pos_output.size())
+            masked_output = transform_pos_output * mask_expanded.float()
         labels *= mask.long()
         labels_fine *= mask.long()
 
-        # Add POS with transformer embeddings TODO
-
         # linear for coarse
-        probablity = F.relu ( self.hidden2tag( transform_pos_output ) )
+        probablity = F.relu ( self.hidden2tag( masked_output ) )
         max_probs = torch.max(probablity, dim=2)         
         logits = max_probs.indices
 
         # linear for fine
-        probablity_fine = F.relu ( self.hidden2tag_fine( transform_pos_output ) )
+        probablity_fine = F.relu ( self.hidden2tag_fine( masked_output ) )
         max_probs_fine = torch.max(probablity_fine, dim=2)
         # logits_fine = max_probs_fine.indices.flatten()
         logits_fine = max_probs_fine.indices
