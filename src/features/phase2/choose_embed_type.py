@@ -30,7 +30,7 @@ import model_tokenizer
 
 TOKENIZERS = model_tokenizer.HF_TOKENIZERS
 MODELS = model_tokenizer.HF_MODELS
-MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'transformerlinear': TRANSFORMERLINEAR }
+MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'transformerlinear': TRANSFORMERLINEAR, 'transformerpos': TRANSFORMERPOS, 'transformerposcrf':TRANSFORMERPOSCRF , 'transformercrf': TRANSFORMERCRF, 'transformerlstmlinear':TRANSFORMERBiLSTMLINEAR, 'transformerlstmattnlin':TRANSFORMERAttenLin, 'transformerposlstmattnlin':TRANSFORMERPOSAttenLin, 'mtl_0':MTL_0, 'mtl_baseline':MTLBASELINE, 'mtl_2':MTL_2, 'mtl_3':MTL_3, 'mtl_4': MTL_4, 'mtl_5': MTL_5 }
 
 ##################################################################################
 # Load the chosen tokenizer
@@ -52,44 +52,7 @@ def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
     if chosen_model in MODEL_DICT:
         load_model = MODEL_DICT[chosen_model]
         model = load_model(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'transformerlinear':
-        model = TRANSFORMERLINEAR(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'transformerpos':
-        model = TRANSFORMERPOS(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'transformerposcrf':
-        model = TRANSFORMERPOSCRF(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'transformercrf':
-        model = TRANSFORMERCRF(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'transformerlstmlinear':
-        model = TRANSFORMERBiLSTMLINEAR(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'transformerlstmattnlin':
-        model = TRANSFORMERAttenLin(args.freeze_bert, tokenizer, modelembed, args)
-        
-    if chosen_model == 'transformerposlstmattnlin':
-        model = TRANSFORMERPOSAttenLin(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'mtl_0':
-        model = MTL_0(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'mtl_baseline':
-        model = MTLBASELINE(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'mtl_2':
-        model = MTL_2(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'mtl_3':
-        model = MTL_3(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'mtl_4':
-        model = MTL_4(args.freeze_bert, tokenizer, modelembed, args)
-
-    if chosen_model == 'mtl_5':
-        model = MTL_5(args.freeze_bert, tokenizer, modelembed, args)
+    else:
+        print( 'Provide correct model name....' )
 
     return model
