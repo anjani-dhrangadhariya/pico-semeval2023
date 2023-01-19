@@ -50,6 +50,7 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler, Sequentia
 import torch.optim as optim
 from torch import LongTensor
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torch.nn import Dropout
 
 # keras essentials
 from keras.preprocessing.sequence import pad_sequences
@@ -85,6 +86,9 @@ class ENSEMBLE1(nn.Module):
             for p in self.transformer_layer.parameters():
                 p.requires_grad = False
 
+        if exp_args.entity != 'all':
+            self.dropout_layer = Dropout(p=0.8, inplace=False)
+
 
         # log reg predictor
         self.hidden2tag = nn.Linear(transformer_dim, exp_args.num_labels)
@@ -115,6 +119,10 @@ class ENSEMBLE1(nn.Module):
             attention_mask = attention_mask
         )
         sequence_output = outputs[0]
+
+        # dropout layer
+        if args.entity != 'all':
+            sequence_output = self.dropout_layer( sequence_output )
 
         # mask the unimportant tokens before log_reg
         mask = (
