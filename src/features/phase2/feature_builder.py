@@ -15,19 +15,17 @@ from load_pico import load_data, seed_everything
 tqdm.pandas()
 
 
-def build_features(seed):
+def build_features(seed, args, tokenizer):
+
 
     # load arguments
-    args = getArguments() # get all the experimental arguments
+    # args = getArguments() # get all the experimental arguments
     # seed 
     seed_everything( seed=seed )
 
-    train_df, val_df, test_df = load_data(args.data_dir, seed=seed )
-    print( 'Data loaded...' )
 
-    start_feature_transformation = time.time()
-    tokenizer, model = choose_tokenizer_type( args.embed )
-    print('Tokenizer and model loaded...')
+    train_df, val_df, test_df = load_data(args.data_dir )
+    print( 'Data loaded...' )
 
     # Get Contextual word features and POS features
     if 'mtl' not in args.model:
@@ -56,4 +54,4 @@ def build_features(seed):
     val_df = transform_char( val_df )
     test_df = transform_char( test_df )
 
-    return train_df, val_df, test_df, tokenizer, model
+    return train_df, val_df, test_df
