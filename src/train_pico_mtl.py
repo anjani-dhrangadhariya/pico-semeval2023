@@ -43,7 +43,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from sklearn import preprocessing
 from sklearn.metrics import (accuracy_score, classification_report,
-                             confusion_matrix, f1_score, plot_confusion_matrix,
+                             confusion_matrix, f1_score, 
                              precision_score, recall_score)
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 
