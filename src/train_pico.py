@@ -102,7 +102,7 @@ def write_preds(input, preds, labs, exp_args, seed=None):
     file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.tsv'
 
     write_np = np.column_stack([input, labs, preds])
-    np.savetxt(file_name_here, write_np, delimiter=';', fmt='%s')
+    np.savetxt(file_name_here, write_np, delimiter='|', fmt='%s')
 
     return None
 
