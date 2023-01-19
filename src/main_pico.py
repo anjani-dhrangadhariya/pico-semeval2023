@@ -83,14 +83,14 @@ if __name__ == "__main__":
     try:
 
         # with mlflow.start_run() as run:
-        for i in ['11']:
+        for i in [0, 1, 42]:
 
             # get arguments
             exp_args = arguments.getArguments() # get all the experimental arguments
-            seed_everything( exp_args.seed )
+            seed_everything( i )
 
             # This is executed after the seed is set because it is imperative to have reproducible data run after shuffle
-            train_df, val_df, test_df, tokenizer, model = feature_builder.build_features()
+            train_df, val_df, test_df, tokenizer, model = feature_builder.build_features( i )
             print( 'Train and validation dataframes loaded...' )
 
             # Convert all inputs, labels, and attentions into torch tensors, the required datatype: torch.int64
@@ -201,7 +201,7 @@ if __name__ == "__main__":
             print('##################################################################################')
             train_start = time.time()
             if 'mtl' not in exp_args.model:
-                saved_models = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
+                saved_models = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args, seed = i)
             elif 'mtl' in exp_args.model:
                 saved_models = train_mtl(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
 
@@ -212,6 +212,7 @@ if __name__ == "__main__":
             print('##################################################################################')
             # Print the experiment details
             print('The experiment on ', exp_args.entity, ' entity class using ', exp_args.embed, ' running for ', exp_args.max_eps, ' epochs.'  )
+            print( 'Results for the seed: ', i )
             print( 'Arguments: ', exp_args )
 
             checkpoint = torch.load(saved_models[-1], map_location='cuda:0')

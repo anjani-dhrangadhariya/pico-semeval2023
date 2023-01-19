@@ -96,20 +96,20 @@ def re_stitch_tokens(tokens, labels, subtoken_dummy = 100):
     return np.array(re_stitched)
 
 
-def write_preds(input, preds, labs, exp_args):
+def write_preds(input, preds, labs, exp_args, seed=None):
 
     base_path = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions'
-    file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(exp_args.seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.tsv'
+    file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.tsv'
 
     write_np = np.column_stack([input, labs, preds])
     np.savetxt(file_name_here, write_np, delimiter=';', fmt='%s')
 
     return None
 
-def plot_cm(cm, exp_args):
+def plot_cm(cm, exp_args, seed=None):
 
     base_path = '/home/anjani/pico-semeval2023/src/visualization/phase2/cm'
-    file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(exp_args.seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.png'
+    file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.png'
 
     # Plot confusion matrix
     # plt.figure(figsize = (10,7))
@@ -186,7 +186,7 @@ def constrained_beam_search(x, cbs_constraints):
     return x
 
 
-def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_number = None, mode=None):
+def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_number = None, mode=None, seed=None):
     
     if mode == 'test':
         print('The mode is: ', mode)
@@ -278,20 +278,19 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
 
         # confusion_matrix and plot
         labels = list( range( exp_args.num_labels ) )
-        print( labels )
         cm = sklearn.metrics.confusion_matrix(eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, labels=labels, normalize=None)
 
         # Write input IDs and labels down to a file for inspection
         if epoch_number == (exp_args.max_eps - 1):
-            write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, exp_args)
-            plot_cm(cm, exp_args)
+            write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, exp_args, seed=seed)
+            plot_cm(cm, exp_args, seed=seed)
 
 
     return val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
 
                                 
 # Train
-def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, development_dataloader, exp_args):
+def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, development_dataloader, exp_args, seed=None):
 
     torch.autograd.set_detect_anomaly(True)
 
@@ -382,7 +381,7 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
 
             train_cr = classification_report(y_pred= train_epoch_logits_coarse_i, y_true=train_epochs_labels_coarse_i, labels= list(range(exp_args.num_labels)), output_dict=True, digits=4)             
 
-            val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm  = evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_i)
+            val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm  = evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_i, seed=seed)
            
             val_f1 = printMetrics(val_cr, exp_args)
             # if exp_args.log == True:
@@ -409,10 +408,12 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
 
 
                 print("Best validation F1 improved from {} to {} ...".format( best_f1, val_f1[0] ))
-                model_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(exp_args.seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(epoch_i) + '.pth'
+                model_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(epoch_i) + '.pth'
                 print('Saving the best model for epoch {} with mean F1 score of {} '.format(epoch_i, val_f1[0] )) 
                 torch.save(defModel.state_dict(), model_name_here)
                 best_f1 = val_f1[0]
                 saved_models.append(model_name_here)
+
+        # optimizer.swap_swa_sgd()
 
     return saved_models

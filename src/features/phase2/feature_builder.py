@@ -15,14 +15,14 @@ from load_pico import load_data, seed_everything
 tqdm.pandas()
 
 
-def build_features():
+def build_features(seed):
 
     # load arguments
     args = getArguments() # get all the experimental arguments
     # seed 
-    seed_everything( int(args.seed) )
+    seed_everything( seed=seed )
 
-    train_df, val_df, test_df = load_data(args.data_dir)
+    train_df, val_df, test_df = load_data(args.data_dir, seed=seed )
     print( 'Data loaded...' )
 
     start_feature_transformation = time.time()
