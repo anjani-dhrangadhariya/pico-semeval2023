@@ -101,7 +101,7 @@ if __name__ == "__main__":
                     print('Tokenizer and model loaded...')
 
                     # This is executed after the seed is set because it is imperative to have reproducible data run after shuffle
-                    train_df, val_df, test_df= feature_builder.build_features( i, exp_args, tokenizer )
+                    train_df, val_df, test_df = feature_builder.build_features( i, exp_args, tokenizer )
                     print( 'Train and validation dataframes loaded...' )
 
                     # Convert all inputs, labels, and attentions into torch tensors, the required datatype: torch.int64
