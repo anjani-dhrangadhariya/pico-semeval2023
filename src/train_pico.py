@@ -94,14 +94,15 @@ def re_stitch_tokens(tokens, labels, subtoken_dummy = 100):
     return np.array(re_stitched)
 
 
-def write_preds(input, preds, labs):
+def write_preds(input, preds, labs, exp_args):
 
-    write_dir = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions'
+    base_path = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions'
+    file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(exp_args.seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.tsv'
     # replace_func = np.vectorize(lambda x: x.replace('','-'))
     # input = replace_func(input)
 
     write_np = np.column_stack([input, labs, preds])
-    np.savetxt(f'{write_dir}/inspect_best.tsv', write_np, delimiter=';', fmt='%s')
+    np.savetxt(file_name_here, write_np, delimiter=';', fmt='%s')
 
     return None
 
@@ -215,10 +216,7 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
             # print( e_input_pos.shape )
             # print( e_input_offsets.shape )
 
-            if 'mtl' in exp_args.model:
-                e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, input_char_encode=e_input_char, input_char_ortho=e_input_ortho, mode = mode, args = exp_args) 
-            else:
-                e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, mode = mode, args = exp_args) 
+            e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, mode = mode, args = exp_args) 
 
             mean_loss += abs( torch.mean(e_loss) ) 
 
@@ -230,13 +228,10 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
                 else:
                     e_output_class = e_output[i, ]
 
-                if mode == 'test' or exp_args.supervision == 'fs':
-                    e_label_class = e_labels[i, ]
-                    e_input_offsets_class = e_input_offsets[i, ]
-                    e_input_ids_class = e_input_ids_[i, ]
+                e_label_class = e_labels[i, ]
+                e_input_offsets_class = e_input_offsets[i, ]
+                e_input_ids_class = e_input_ids_[i, ]
                     
-                elif exp_args.supervision == 'ws':
-                    e_label_class = torch.argmax(e_labels[i, ], dim=1)
 
                 selected_preds_coarse = torch.masked_select( e_output_class, e_mask[i, ])
                 selected_preds_coarse = selected_preds_coarse.detach().to("cpu").numpy()
@@ -270,7 +265,8 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
         cm = confusion_matrix(eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, labels, normalize=None)
 
         # Write input IDs and labels down to a file for inspection
-        # write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i)
+        if epoch_number == (exp_args.max_eps - 1):
+            write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, exp_args)
 
 
     return val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
