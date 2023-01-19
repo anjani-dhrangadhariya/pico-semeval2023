@@ -28,10 +28,8 @@ import time
 import warnings
 from collections import OrderedDict
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sn
 
 # sklearn
 import sklearn
@@ -43,7 +41,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from sklearn import preprocessing
 from sklearn.metrics import (accuracy_score, classification_report,
-                             confusion_matrix, f1_score, plot_confusion_matrix,
+                             confusion_matrix, f1_score, 
                              precision_score, recall_score)
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 
@@ -55,6 +53,10 @@ from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
                               TensorDataset)
 # Visualization
 from tqdm import tqdm
+from mlxtend.plotting import plot_confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 
 # Transformers 
 from transformers import (AdamW, AutoModel, AutoModelForTokenClassification,
@@ -98,11 +100,25 @@ def write_preds(input, preds, labs, exp_args):
 
     base_path = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions'
     file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(exp_args.seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.tsv'
-    # replace_func = np.vectorize(lambda x: x.replace('','-'))
-    # input = replace_func(input)
 
     write_np = np.column_stack([input, labs, preds])
     np.savetxt(file_name_here, write_np, delimiter=';', fmt='%s')
+
+    return None
+
+def plot_cm(cm, exp_args):
+
+    base_path = '/home/anjani/pico-semeval2023/src/visualization/phase2/cm'
+    file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(exp_args.seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.png'
+
+    # Plot confusion matrix
+    # plt.figure(figsize = (10,7))
+    # sns.heatmap(cm, annot=True, fmt="d")
+    fig, ax = plot_confusion_matrix(conf_mat=cm,
+                                show_absolute=True,
+                                show_normed=True,
+                                colorbar=True)
+    fig.savefig(file_name_here)
 
     return None
 
@@ -261,12 +277,14 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
         val_cr = classification_report(y_pred= eval_epochs_logits_coarse_i, y_true=eval_epochs_labels_coarse_i, labels=list(range(exp_args.num_labels)), output_dict=True, digits=4)
 
         # confusion_matrix and plot
-        labels = [0, 1]
-        cm = confusion_matrix(eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, labels, normalize=None)
+        labels = list( range( exp_args.num_labels ) )
+        print( labels )
+        cm = sklearn.metrics.confusion_matrix(eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, labels=labels, normalize=None)
 
         # Write input IDs and labels down to a file for inspection
         if epoch_number == (exp_args.max_eps - 1):
             write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, exp_args)
+            plot_cm(cm, exp_args)
 
 
     return val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
