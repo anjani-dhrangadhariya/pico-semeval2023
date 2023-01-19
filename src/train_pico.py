@@ -118,17 +118,17 @@ def print_last_epoch(cr, args):
 
     # print the metrics of the last epoch
     if args.num_labels == 2:
-        print( round(cr['macro avg']['precision'], 4), ',', round(cr['macro avg']['recall'], 4), ',', round(cr['macro avg']['f1-score'], 4)
-        , ',', round(cr['0']['precision'], 4), ',', round(cr['0']['recall'], 4), ',', round(cr['0']['f1-score'], 4)
-        , ',', round(cr['1']['precision'], 4), ',', round(cr['1']['recall'], 4), ',', round(cr['1']['f1-score'], 4)
+        print( round(cr['macro avg']['precision'], 4)*100 , ',', round(cr['macro avg']['recall'], 4)*100, ',', round(cr['macro avg']['f1-score'], 4)*100
+        , ',', round(cr['0']['precision'], 4)*100, ',', round(cr['0']['recall'], 4)*100, ',', round(cr['0']['f1-score'], 4)*100
+        , ',', round(cr['1']['precision'], 4)*100, ',', round(cr['1']['recall'], 4)*100, ',', round(cr['1']['f1-score'], 4)*100
         )
 
     elif args.num_labels == 4:
-        print( round(cr['macro avg']['precision'], 4), ',', round(cr['macro avg']['recall'], 4), ',', round(cr['macro avg']['f1-score'], 4)
-        , ',', round(cr['0']['precision'], 4), ',', round(cr['0']['recall'], 4), ',', round(cr['0']['f1-score'], 4)
-        , ',', round(cr['1']['precision'], 4), ',', round(cr['1']['recall'], 4), ',', round(cr['1']['f1-score'], 4)
-        , ',', round(cr['2']['precision'], 4), ',', round(cr['2']['recall'], 4), ',', round(cr['2']['f1-score'], 4)
-        , ',', round(cr['3']['precision'], 4), ',', round(cr['3']['recall'], 4), ',', round(cr['3']['f1-score'], 4)
+        print( round(cr['macro avg']['precision'], 4)*100, ',', round(cr['macro avg']['recall'], 4), ',', round(cr['macro avg']['f1-score'], 4)
+        , ',', round(cr['0']['precision'], 4)*100, ',', round(cr['0']['recall'], 4)*100, ',', round(cr['0']['f1-score'], 4)*100
+        , ',', round(cr['1']['precision'], 4)*100, ',', round(cr['1']['recall'], 4)*100, ',', round(cr['1']['f1-score'], 4)*100
+        , ',', round(cr['2']['precision'], 4)*100, ',', round(cr['2']['recall'], 4)*100, ',', round(cr['2']['f1-score'], 4)*100
+        , ',', round(cr['3']['precision'], 4)*100, ',', round(cr['3']['recall'], 4)*100, ',', round(cr['3']['f1-score'], 4)*100
         )
 
 
@@ -225,7 +225,7 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
             for i in range(0, e_labels.shape[0]):
 
                 # convert continuous probas to classes for b_output and b_labels
-                if 'crf' not in exp_args.model:
+                if 'crf' not in exp_args.predictor:
                     e_output_class = torch.argmax(e_output[i, ], dim=1)
                 else:
                     e_output_class = e_output[i, ]
@@ -310,10 +310,7 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
                 b_input_char = batch[5].to(f'cuda:{defModel.device_ids[0]}')
                 b_input_ortho = batch[6].to(f'cuda:{defModel.device_ids[0]}')
 
-                if 'mtl' in exp_args.model:
-                    b_loss, b_output, b_output_masks, b_labels, b_labels_mask, b_mask = defModel(input_ids = b_input_ids, attention_mask=b_masks, labels=b_labels, input_pos=b_pos, input_offs = b_input_offs, input_char_encode=b_input_char, input_char_ortho=b_input_ortho, args = exp_args)                
-                else:
-                    b_loss, b_output, b_output_masks, b_labels, b_labels_mask, b_mask = defModel(input_ids = b_input_ids, attention_mask=b_masks, labels=b_labels, input_pos=b_pos, input_offs = b_input_offs, args = exp_args)                
+                b_loss, b_output, b_output_masks, b_labels, b_labels_mask, b_mask = defModel(input_ids = b_input_ids, attention_mask=b_masks, labels=b_labels, input_pos=b_pos, input_offs = b_input_offs, args = exp_args)                
 
                 total_train_loss += abs( torch.mean(b_loss) ) 
 
@@ -331,15 +328,13 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
                 for i in range(0, b_labels.shape[0]): # masked select excluding the post padding 
 
                     # convert continuous probas to classes for b_output and b_labels
-                    if 'crf' not in exp_args.model:
+                    if 'crf' not in exp_args.predictor:
                         b_output_class = torch.argmax(b_output[i, ], dim=1)
                     else:
                         b_output_class = b_output[i, ]
-                    if exp_args.supervision == 'ws':
-                        b_label_class = torch.argmax(b_labels[i, ], dim=1)
-                    elif exp_args.supervision == 'fs':
-                        b_label_class = b_labels[i, ]
-                        b_input_offsets_class = b_input_offs[i, ]
+
+                    b_label_class = b_labels[i, ]
+                    b_input_offsets_class = b_input_offs[i, ]
 
                     selected_preds_coarse = torch.masked_select( b_output_class, b_mask[i, ])
                     selected_labs_coarse = torch.masked_select( b_label_class, b_mask[i, ])
@@ -400,7 +395,7 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
 
 
                 print("Best validation F1 improved from {} to {} ...".format( best_f1, val_f1[0] ))
-                model_name_here = base_path + '/' + str(exp_args.entity) + str(exp_args.embed) + '_epoch_' + str(epoch_i) + '.pth'
+                model_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(exp_args.seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(epoch_i) + '.pth'
                 print('Saving the best model for epoch {} with mean F1 score of {} '.format(epoch_i, val_f1[0] )) 
                 torch.save(defModel.state_dict(), model_name_here)
                 best_f1 = val_f1[0]
