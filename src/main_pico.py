@@ -6,24 +6,19 @@ __maintainer__ = "Dhrangadhariya, Anjani"
 __email__ = "anjani.k.dhrangadhariya@gmail.com"
 __version__ = "1.0"
 
+from ast import arg
 import os
 import random
 import sys
 import time
 import traceback
 
-
-
-
 path = '/home/anjani/pico-semeval2023/src/features/phase2'
 sys.path.append(path)
 print(sys.path)
-from features.phase2 import feature_builder, choose_embed_type, arguments
-
 import mlflow
 import numpy as np
 import pandas as pd
-
 # pyTorch essentials
 import torch
 import torch.nn as nn
@@ -35,14 +30,19 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
                               TensorDataset)
+from torchcontrib.optim import SWA
+from torch.optim import AdamW
+
+
 # Transformers 
-from transformers import BertModel, BertTokenizer, BertConfig
-from transformers import RobertaConfig, RobertaModel
-from transformers import GPT2Model, GPT2Tokenizer, GPT2Config
-from transformers import AutoTokenizer, AutoModelForTokenClassification, AutoModel
-from transformers import AdamW 
-from transformers import get_linear_schedule_with_warmup
-from transformers import logging
+from transformers import (AdamW, AutoModel, AutoModelForTokenClassification,
+                          AutoTokenizer, BertConfig, BertModel, BertTokenizer,
+                          GPT2Config, GPT2Model, GPT2Tokenizer, RobertaConfig,
+                          RobertaModel, get_linear_schedule_with_warmup,
+                          logging)
+
+from features.phase2 import arguments, choose_embed_type, feature_builder
+
 logging.set_verbosity_error()
 
 from train_pico import evaluate, train
@@ -53,6 +53,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 # mlflow 
 from utilities.mlflow_logging import *
+from load_pico import seed_everything
+
 
 def loadModel(model, exp_args):
 
@@ -85,6 +87,7 @@ if __name__ == "__main__":
 
             # get arguments
             exp_args = arguments.getArguments() # get all the experimental arguments
+            seed_everything( exp_args.seed )
 
             # This is executed after the seed is set because it is imperative to have reproducible data run after shuffle
             train_df, val_df, test_df, tokenizer, model = feature_builder.build_features()
@@ -174,6 +177,9 @@ if __name__ == "__main__":
                             eps = exp_args.eps, # args.adam_epsilon  - default is 1e-8.
                             )
 
+            # base_opt = torch.optim.AdamW(model.parameters(), lr=0.1)
+            # optimizer = SWA(base_opt, swa_start=10, swa_freq=5, swa_lr=0.05)
+
             # Total number of training steps is number of batches * number of epochs.
             total_steps = len(train_dataloader) * exp_args.max_eps
             print('Total steps per epoch: ', total_steps)
@@ -206,9 +212,10 @@ if __name__ == "__main__":
             print('##################################################################################')
             # Print the experiment details
             print('The experiment on ', exp_args.entity, ' entity class using ', exp_args.embed, ' running for ', exp_args.max_eps, ' epochs.'  )
+            print( 'Arguments: ', exp_args )
 
-            # checkpoint = torch.load(saved_models[-1], map_location='cuda:0')
-            checkpoint = torch.load('/mnt/nas2/results/Results/systematicReview/SemEval2023/models/all/roberta_epoch_0.pth', map_location='cuda:0')
+            checkpoint = torch.load(saved_models[-1], map_location='cuda:0')
+            # checkpoint = torch.load('/mnt/nas2/results/Results/systematicReview/SemEval2023/models/all/roberta_epoch_0.pth', map_location='cuda:0')
             model.load_state_dict( checkpoint, strict=False  )
             model = torch.nn.DataParallel(model, device_ids=[0])
 

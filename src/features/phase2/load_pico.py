@@ -177,6 +177,10 @@ def fetch_val():
 # Load dataframe with PICO
 def load_data(input_directory):
 
+    # get arguments
+    exp_args = getArguments() # get all the experimental arguments
+    seed_everything( exp_args.seed )
+
     train = 'st2_train_preprocessed.tsv'
     val = 'st2_val_preprocessed.tsv'
     test = 'st2_test_preprocessed.tsv'
