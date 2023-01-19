@@ -96,6 +96,17 @@ class ENSEMBLE1(nn.Module):
         # loss calculation
         self.loss_fct = nn.CrossEntropyLoss()
 
+    def get_loss(self, probablities_masked, labels_masked ):
+
+        cumulative_loss = torch.cuda.FloatTensor([0.0]) 
+        for i in range(0, probablities_masked.shape[0]):
+            loss = self.loss_fct( probablities_masked[i] , labels_masked[i]  )
+            cumulative_loss += loss
+        
+        average_loss = cumulative_loss /  probablities_masked.shape[0]
+
+        return average_loss
+
     def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, input_offs=None, mode = None, args = None):
 
         # Transformer
@@ -117,7 +128,6 @@ class ENSEMBLE1(nn.Module):
         sequence_output *= mask_expanded.float()
 
         labels_masked = labels * mask.long()
-        offsets_masked = input_offs * mask.long()
 
         # linear layer (log reg) to emit class probablities
         probablities = F.relu ( self.hidden2tag( sequence_output ) )
@@ -126,13 +136,14 @@ class ENSEMBLE1(nn.Module):
 
         if args.predictor == 'linear':
 
-            cumulative_loss = torch.cuda.FloatTensor([0.0]) 
-            for i in range(0, probablities.shape[0]):
-
-                loss = self.loss_fct( probablities_masked[i] , labels_masked[i]  )
-                cumulative_loss += loss
+            # cumulative_loss = torch.cuda.FloatTensor([0.0]) 
+            # for i in range(0, probablities.shape[0]):
+            #     loss = self.loss_fct( probablities_masked[i] , labels_masked[i]  )
+            #     cumulative_loss += loss
             
-            average_loss = cumulative_loss /  probablities.shape[0]
+            # average_loss = cumulative_loss /  probablities.shape[0]
+
+            average_loss = self.get_loss( probablities_masked, labels_masked )
 
             return average_loss, probablities, probablities_mask_expanded, labels, mask, mask
 
@@ -146,9 +157,9 @@ class ENSEMBLE1(nn.Module):
                 labels_masked[eachIndex, 0] = 0
 
             # CRF emissions
-            loss = self.crf_layer(probablities_masked, labels_masked, reduction='token_mean', mask = None)
+            loss = self.crf_layer(probablities_masked, labels_masked, reduction='token_mean', mask = mask)
 
-            emissions_ = self.crf_layer.decode( probablities_masked , mask = None)
+            emissions_ = self.crf_layer.decode( probablities_masked , mask = mask)
             emissions = [item for sublist in emissions_ for item in sublist] # flatten the nest list of emissions
 
             target_emissions = torch.zeros(probablities_masked.shape[0], probablities_masked.shape[1])
