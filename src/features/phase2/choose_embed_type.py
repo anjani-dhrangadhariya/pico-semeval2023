@@ -23,12 +23,14 @@ from mtl_2 import MTL_2
 from mtl_3 import MTL_3
 from mtl_4 import MTL_4
 from mtl_5 import MTL_5
+from ensemble1 import ENSEMBLE1
 
 
 import model_tokenizer
 
 TOKENIZERS = model_tokenizer.HF_TOKENIZERS
 MODELS = model_tokenizer.HF_MODELS
+MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'transformerlinear': TRANSFORMERLINEAR }
 
 ##################################################################################
 # Load the chosen tokenizer
@@ -46,6 +48,10 @@ def choose_tokenizer_type(pretrained_model):
 
 
 def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
+
+    if chosen_model in MODEL_DICT:
+        load_model = MODEL_DICT[chosen_model]
+        model = load_model(args.freeze_bert, tokenizer, modelembed, args)
 
     if chosen_model == 'transformerlinear':
         model = TRANSFORMERLINEAR(args.freeze_bert, tokenizer, modelembed, args)
