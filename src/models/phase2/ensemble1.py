@@ -155,6 +155,7 @@ class ENSEMBLE1(nn.Module):
 
             for eachIndex in range( labels_masked.shape[0] ):
                 labels_masked[eachIndex, 0] = 0
+                labels[eachIndex, 0] = 0
 
             # CRF emissions
             loss = self.crf_layer(probablities_masked, labels_masked, reduction='token_mean', mask = mask)
