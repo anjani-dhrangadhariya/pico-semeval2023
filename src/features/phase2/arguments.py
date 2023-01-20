@@ -23,27 +23,26 @@ def getArguments():
     parser.add_argument('-supervision', type = str, default = 'fs') # label_type = {fs, ws, hs, ...} 
     parser.add_argument('-train_from_scratch', type = str, default=True)
 
-    parser.add_argument('-entity', type = str, default = 'all') # participant, intervention, outcome, study type, all, all_sep
+    parser.add_argument('-entity', type = str, default = 'outcome') # participant, intervention, outcome, all, all_sep
     parser.add_argument('-num_labels', type = int, default = 2) # 2 for binary (O-span vs. P/I/O) classification, 4 for multiclass (PICO) classification
     parser.add_argument('-data_dir', type = Path, default = '/mnt/nas2/data/systematicReview/semeval2023/data/preprocessed')
 
     parser.add_argument('-label_type', type = str, default = 'seq_lab') # label_type = {seq_lab, BIO, BIOES, ...} 
 
     parser.add_argument('-max_len', type = int, default=512)
-    parser.add_argument('-seed', type = int, default= 0)
-    parser.add_argument('-embed', type = str, default = 'roberta') # embed = {bioredditbert, biomedroberta, roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
+    parser.add_argument('-seed', type = int, default= 100)
+    parser.add_argument('-embed', type = str, default = 'none') # embed = {bioredditbert, biomedroberta, roberta, scibert, bert, biobert, pubmedbert, BioLinkBERT ...} 
     parser.add_argument('-model', type = str, default = 'ensemble1') # model = {transformerpos, transformerposcrf, transformerlinear, transformercrf, transformerlstmlinear, transformerlstmattnlin, transformerposlstmattnlin} 
-    parser.add_argument('-predictor', type=str, default = 'crf') # { 'linear', 'crf' }
+    parser.add_argument('-predictor', type=str, default = 'none') # { linear, crf }
     parser.add_argument('-pos_encoding', type=str, default='onehot') # onehot, lstm 
     parser.add_argument('-cbs', type=bool, default=False) # Constrained Beam Search 
     parser.add_argument('-bidrec', type = str, default=True)
 
 
-
     parser.add_argument('-print_every', type = int, default= 100)
     parser.add_argument('-mode', type = str, default= "train")
 
-    parser.add_argument('-max_eps', type = int, default= 15)
+    parser.add_argument('-max_eps', type = int, default= 5)
     parser.add_argument('-batch', type = int, default= 10)
     parser.add_argument('-loss', type = str, default = 'general')
     parser.add_argument('-freeze_bert', action='store_false') # store_false = won't freeze BERT
