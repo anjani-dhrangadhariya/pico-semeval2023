@@ -89,11 +89,13 @@ def process_labels(x):
                 else:
                     i_coarsed.append( 0 )
 
-            elif ent == 'all_sep':
+            if ent == 'all_sep':
                 i_coarsed.append( i_i )
 
-            else:
-                if i_i != picos_mapping[ent] and i_i != 0:
+            if ent == 'participant' or ent == 'intervention' or ent == 'outcome':
+                if i_i == 0:
+                    i_coarsed.append( 0 )
+                if i_i == picos_mapping[ent] and i_i != 0:
                     i_coarsed.append( 0 )
                 if i_i != 0:
                     i_coarsed.append( 1 )
