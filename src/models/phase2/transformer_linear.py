@@ -75,6 +75,8 @@ class TRANSFORMERLINEAR(nn.Module):
         super(TRANSFORMERLINEAR, self).__init__()
         #Instantiating BERT model object 
         self.transformer_layer = model
+
+        transformer_dim = 768
         
         #Freeze bert layers: if True, the freeze BERT weights
         if freeze_bert:
@@ -84,7 +86,7 @@ class TRANSFORMERLINEAR(nn.Module):
         self.tokenizer = tokenizer
 
         # log reg
-        self.hidden2tag = nn.Linear(768, exp_args.num_labels)
+        self.hidden2tag = nn.Linear(transformer_dim, exp_args.num_labels)
 
         # loss calculation
         self.loss_fct = nn.CrossEntropyLoss()

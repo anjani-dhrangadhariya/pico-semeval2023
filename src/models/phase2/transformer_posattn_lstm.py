@@ -94,7 +94,7 @@ class TRANSFORMERPOSAttenLin(nn.Module):
         self.loss_fct = nn.CrossEntropyLoss()
 
     
-    def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None,  mode = None, args = None):
+    def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, input_offs=None, mode = None, args = None):
 
         # Transformer
         outputs = self.transformer_layer(
@@ -104,24 +104,28 @@ class TRANSFORMERPOSAttenLin(nn.Module):
 
         # output 0 = batch size 6, tokens MAX_LEN, each token dimension 768 [CLS] token
         sequence_output = outputs[0]
+        print( 'Output of transformers: ', sequence_output.shape )
 
         # Attention weighted transformer output output
         attention_applied, attention_weights = self.self_attention( sequence_output, sequence_output, sequence_output, need_weights=True, attn_mask = None )
+        print( 'Output of transformers after attention applied: ', attention_applied.shape )
 
         # ------------------------------ POS input preprocessing ------------------------------------
         # one hot encode POS tags
         input_pos = input_pos
-        # print( input_pos.shape )
-        # packed_pos_input, pos_perm_idx, pos_seq_lengths, total_length_pos = get_packed_padded_output_dataparallel(input_pos.float(), attention_mask)
-        # self.lstmpos_layer.flatten_parameters()
-        # packed_pos_output, (ht_pos, ct_pos) = self.lstmpos_layer(packed_pos_input)
+        print( 'Shape of input POS tags: ', input_pos.shape )
+        packed_pos_input, pos_perm_idx, pos_seq_lengths, total_length_pos = get_packed_padded_output_dataparallel(input_pos.float(), attention_mask)
+        print( 'Shape of input packed POS tags: ', packed_pos_input[0].shape )
+        self.lstmpos_layer.flatten_parameters()
+        packed_pos_output, (ht_pos, ct_pos) = self.lstmpos_layer(packed_pos_input)
+        print( 'LSTM output of POS tags: ', packed_pos_output[0].shape)
 
         # Unpack and reorder the output
         # pos_output, pos_input_sizes = pad_packed_sequence(packed_pos_output, batch_first=True, total_length=total_length_pos)
         # _, unperm_idx = pos_perm_idx.sort(0)
         # lstm_pos_output = pos_output[unperm_idx]
         # seq_lengths_ordered = pos_seq_lengths[unperm_idx]
-        # target = torch.zeros(lstm_pos_output.shape/[0], input_pos.shape[1], lstm_pos_output.shape[2])
+        # target = torch.zeros(lstm_pos_output.shape[0], input_pos.shape[1], lstm_pos_output.shape[2])
         # target = target.cuda()
 
         # target[:, :lstm_pos_output.shape[1], :] = lstm_pos_output # Expand dimensions of the LSTM transformed pos embeddings
@@ -135,6 +139,8 @@ class TRANSFORMERPOSAttenLin(nn.Module):
 
         # lstm with masks (same as attention masks) applied on concatenated embeddings + pos features
         lstm_packed_input, perm_idx, seq_lengths = get_packed_padded_output(attention_applied, attention_mask, self.tokenizer)
+        print( len( lstm_packed_input ) )
+        print( lstm_packed_input[0].shape )
         lstm_packed_output, (ht, ct) = self.lstm_layer(lstm_packed_input)
 
         # Unpack and reorder the output

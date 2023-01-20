@@ -127,6 +127,7 @@ class TRANSFORMERPOSCRF(nn.Module):
             pos_output, pos_input_sizes = pad_packed_sequence(packed_pos_output, batch_first=True, total_length=total_length_pos)
             _, unperm_idx = pos_perm_idx.sort(0)
             lstm_pos_output = pos_output[unperm_idx]
+            print( lstm_pos_output.shape )
 
         # Concat POS tags with embedding output
         if args.pos_encoding == 'lstm':

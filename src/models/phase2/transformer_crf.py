@@ -104,7 +104,7 @@ class TRANSFORMERCRF(nn.Module):
         # output 2 = layers 13, batch 6 (hidden states), tokens 512, each token dimension 768
         sequence_output = outputs[0] 
         
-        # mask the unimportant tokens before log_reg
+        # mask the unimportant tokens before CRF
         mask = (
             (input_ids != self.tokenizer.pad_token_id)
             & (input_ids != self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token))
