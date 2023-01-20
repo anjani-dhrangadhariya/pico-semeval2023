@@ -24,13 +24,15 @@ from mtl_3 import MTL_3
 from mtl_4 import MTL_4
 from mtl_5 import MTL_5
 from ensemble1 import ENSEMBLE1
+from ensemble2 import ENSEMBLE2
+
 
 
 import model_tokenizer
 
 TOKENIZERS = model_tokenizer.HF_TOKENIZERS
 MODELS = model_tokenizer.HF_MODELS
-MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'transformerlinear': TRANSFORMERLINEAR, 'transformerpos': TRANSFORMERPOS, 'transformerposcrf':TRANSFORMERPOSCRF , 'transformercrf': TRANSFORMERCRF, 'transformerlstmlinear':TRANSFORMERBiLSTMLINEAR, 'transformerlstmattnlin':TRANSFORMERAttenLin, 'transformerposlstmattnlin':TRANSFORMERPOSAttenLin, 'mtl_0':MTL_0, 'mtl_baseline':MTLBASELINE, 'mtl_2':MTL_2, 'mtl_3':MTL_3, 'mtl_4': MTL_4, 'mtl_5': MTL_5 }
+MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'ensemble2': ENSEMBLE2, 'transformerlinear': TRANSFORMERLINEAR, 'transformerpos': TRANSFORMERPOS, 'transformerposcrf':TRANSFORMERPOSCRF , 'transformercrf': TRANSFORMERCRF, 'transformerlstmlinear':TRANSFORMERBiLSTMLINEAR, 'transformerlstmattnlin':TRANSFORMERAttenLin, 'transformerposlstmattnlin':TRANSFORMERPOSAttenLin, 'mtl_0':MTL_0, 'mtl_baseline':MTLBASELINE, 'mtl_2':MTL_2, 'mtl_3':MTL_3, 'mtl_4': MTL_4, 'mtl_5': MTL_5 }
 
 ##################################################################################
 # Load the chosen tokenizer
@@ -53,6 +55,6 @@ def choose_model(vector_type, tokenizer, modelembed, chosen_model, args):
         load_model = MODEL_DICT[chosen_model]
         model = load_model(args.freeze_bert, tokenizer, modelembed, args)
     else:
-        print( 'Provide correct model name....' )
+        print( 'Provide one of the names from this list...', ', '.join( list(MODEL_DICT.keys() )) )
 
     return model
