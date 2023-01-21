@@ -25,14 +25,14 @@ from mtl_4 import MTL_4
 from mtl_5 import MTL_5
 from ensemble1 import ENSEMBLE1
 from ensemble2 import ENSEMBLE2
-
+from ensemble3 import ENSEMBLE3
 
 
 import model_tokenizer
 
 TOKENIZERS = model_tokenizer.HF_TOKENIZERS
 MODELS = model_tokenizer.HF_MODELS
-MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'ensemble2': ENSEMBLE2, 'transformerlinear': TRANSFORMERLINEAR, 'transformerpos': TRANSFORMERPOS, 'transformerposcrf':TRANSFORMERPOSCRF , 'transformercrf': TRANSFORMERCRF, 'transformerlstmlinear':TRANSFORMERBiLSTMLINEAR, 'transformerlstmattnlin':TRANSFORMERAttenLin, 'transformerposlstmattnlin':TRANSFORMERPOSAttenLin, 'mtl_0':MTL_0, 'mtl_baseline':MTLBASELINE, 'mtl_2':MTL_2, 'mtl_3':MTL_3, 'mtl_4': MTL_4, 'mtl_5': MTL_5 }
+MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'ensemble2': ENSEMBLE2, 'ensemble3': ENSEMBLE3, 'ensemble4': ENSEMBLE3, 'transformerlinear': TRANSFORMERLINEAR, 'transformerpos': TRANSFORMERPOS, 'transformerposcrf':TRANSFORMERPOSCRF , 'transformercrf': TRANSFORMERCRF, 'transformerlstmlinear':TRANSFORMERBiLSTMLINEAR, 'transformerlstmattnlin':TRANSFORMERAttenLin, 'transformerposlstmattnlin':TRANSFORMERPOSAttenLin, 'mtl_0':MTL_0, 'mtl_baseline':MTLBASELINE, 'mtl_2':MTL_2, 'mtl_3':MTL_3, 'mtl_4': MTL_4, 'mtl_5': MTL_5 }
 
 ##################################################################################
 # Load the chosen tokenizer
