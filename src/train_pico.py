@@ -98,7 +98,7 @@ def re_stitch_tokens(tokens, labels, subtoken_dummy = 100):
 
 def write_preds(input, preds, labs, exp_args, seed=None):
 
-    base_path = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions'
+    base_path = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions/without_Dropout'
     file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.tsv'
 
     write_np = np.column_stack([input, labs, preds])
@@ -108,7 +108,7 @@ def write_preds(input, preds, labs, exp_args, seed=None):
 
 def plot_cm(cm, exp_args, seed=None):
 
-    base_path = '/home/anjani/pico-semeval2023/src/visualization/phase2/cm'
+    base_path = '/home/anjani/pico-semeval2023/src/visualization/phase2/cm/without_Dropout'
     file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.png'
 
     fig, ax = plot_confusion_matrix(conf_mat=cm,
@@ -229,7 +229,7 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
             # print( e_input_pos.shape )
             # print( e_input_offsets.shape )
 
-            e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, mode = mode, args = exp_args) 
+            e_loss, e_output, e_output_masks, e_labels, e_labels_mask, e_mask = defModel(e_input_ids, attention_mask=e_input_mask, labels=e_labels, input_pos=e_input_pos, input_offs=e_input_offsets, input_char_encode=e_input_char, input_char_ortho=e_input_ortho, mode = mode, args = exp_args) 
 
             mean_loss += abs( torch.mean(e_loss) ) 
 
@@ -277,13 +277,7 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
         labels = list( range( exp_args.num_labels ) )
         cm = sklearn.metrics.confusion_matrix(eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, labels=labels, normalize=None)
 
-        # Write input IDs and labels down to a file for inspection
-        if epoch_number == (exp_args.max_eps - 1):
-            write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, exp_args, seed=seed)
-            plot_cm(cm, exp_args, seed=seed)
-
-
-    return val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
+    return val_cr, eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
 
                                 
 # Train
@@ -320,7 +314,7 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
                 b_input_char = batch[5].to(f'cuda:{defModel.device_ids[0]}')
                 b_input_ortho = batch[6].to(f'cuda:{defModel.device_ids[0]}')
 
-                b_loss, b_output, b_output_masks, b_labels, b_labels_mask, b_mask = defModel(input_ids = b_input_ids, attention_mask=b_masks, labels=b_labels, input_pos=b_pos, input_offs = b_input_offs, args = exp_args)                
+                b_loss, b_output, b_output_masks, b_labels, b_labels_mask, b_mask = defModel(input_ids = b_input_ids, attention_mask=b_masks, labels=b_labels, input_pos=b_pos, input_offs = b_input_offs, input_char_encode=b_input_char, input_char_ortho=b_input_ortho, args = exp_args)                
 
                 total_train_loss += abs( torch.mean(b_loss) ) 
 
@@ -378,7 +372,7 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
 
             train_cr = classification_report(y_pred= train_epoch_logits_coarse_i, y_true=train_epochs_labels_coarse_i, labels= list(range(exp_args.num_labels)), output_dict=True, digits=4)             
 
-            val_cr, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm  = evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_i, seed=seed)
+            val_cr, eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm  = evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloader, exp_args, epoch_i, seed=seed)
            
             val_f1 = printMetrics(val_cr, exp_args)
             # if exp_args.log == True:
@@ -389,27 +383,32 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
             if exp_args.num_labels == 4:
                 print( 'Validation: Epoch {} with macro average F1: {}, F1 (0): {}, F1 (1): {}, F1 (2): {}, F1 (3): {}'.format( epoch_i, val_f1[0], val_f1[1], val_f1[2], val_f1[3], val_f1[4] ) )
 
-             # If this is the last epoch then print the classification metrics
-            if epoch_i == (exp_args.max_eps - 1):
-                print_last_epoch(val_cr, exp_args)
+            # If this is the last epoch then print the classification metrics
+            # if epoch_i == (exp_args.max_eps - 1):
+            #     print_last_epoch(val_cr, exp_args)
 
-            # # Process of saving the model
+            # Process of saving the model
             if val_f1[0] > best_f1:
 
                 if exp_args.supervision == 'fs':
-                    base_path = "/mnt/nas2/results/Results/systematicReview/SemEval2023/models/"
+                    base_path = f"/mnt/nas2/results/Results/systematicReview/SemEval2023/models/without_Dropout"
                     if not os.path.exists( base_path ):
                         oldmask = os.umask(000)
                         os.makedirs(base_path)
                         os.umask(oldmask)
 
-
                 print("Best validation F1 improved from {} to {} ...".format( best_f1, val_f1[0] ))
+                # print the best validation metrics
+                print_last_epoch(val_cr, exp_args)
                 model_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(epoch_i) + '.pth'
                 print('Saving the best model for epoch {} with mean F1 score of {} '.format(epoch_i, val_f1[0] )) 
                 torch.save(defModel.state_dict(), model_name_here)
                 best_f1 = val_f1[0]
                 saved_models.append(model_name_here)
+
+                # Write input IDs and labels down to a file for inspection for the best final val score....
+                write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, exp_args, seed=seed)
+                plot_cm(cm, exp_args, seed=seed)
 
         # optimizer.swap_swa_sgd()
 
