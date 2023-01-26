@@ -5,7 +5,7 @@
 from ast import arg
 import warnings
 
-from load_pico import fetch_val
+from load_pico import fetch_val, seed_everything
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -96,9 +96,12 @@ def re_stitch_tokens(tokens, labels, subtoken_dummy = 100):
     return np.array(re_stitched)
 
 
-def write_preds(input, preds, labs, exp_args, seed=None):
+def write_preds(input, preds, labs, exp_args, seed=None, alternative_path = None):
 
-    base_path = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions/without_Dropout'
+    if alternative_path:
+        base_path = f'/mnt/nas2/results/Results/systematicReview/SemEval2023/{alternative_path}/without_Dropout'
+    else:
+        base_path = '/mnt/nas2/results/Results/systematicReview/SemEval2023/predictions/without_Dropout'
     file_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(exp_args.max_eps - 1) + '.tsv'
 
     write_np = np.column_stack([input, labs, preds])
@@ -205,6 +208,10 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
         eval_epochs_cbs_coarse_i = np.empty(1, dtype=np.int64)
         eval_epochs_inputs_coarse_i = np.empty(1, dtype=np.int64)
 
+        eval_epochs_logits_coarse_list = []
+        eval_epochs_labels_coarse_list = []
+        eval_epochs_inputs_coarse_list = []
+
         class_rep_temp = []
 
         # for e_input_ids_, e_labels, e_input_mask, e_input_pos, e_input_offsets in development_dataloader:
@@ -270,24 +277,38 @@ def evaluate(defModel, defTokenizer, optimizer, scheduler, development_dataloade
                 eval_epochs_cbs_coarse_i = np.append( eval_epochs_cbs_coarse_i, selected_offs_coarse, 0 )
                 eval_epochs_inputs_coarse_i = np.append( eval_epochs_inputs_coarse_i, selected_inputs_coarse, 0 )
 
+                if mode == 'test':
+                    eval_epochs_logits_coarse_list.append( list( eval_epochs_logits_coarse_i ) )
+                    eval_epochs_labels_coarse_list.append( list( eval_epochs_labels_coarse_i ) )
+                    eval_epochs_inputs_coarse_list.append( list( eval_epochs_inputs_coarse_i ) )
+
 
         val_cr = classification_report(y_pred= eval_epochs_logits_coarse_i, y_true=eval_epochs_labels_coarse_i, labels=list(range(exp_args.num_labels)), output_dict=True, digits=4)
 
         # confusion_matrix and plot
         labels = list( range( exp_args.num_labels ) )
         cm = sklearn.metrics.confusion_matrix(eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, labels=labels, normalize=None)
-
-    return val_cr, eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
+    
+    if mode == 'test':
+        return val_cr, eval_epochs_inputs_coarse_list, eval_epochs_logits_coarse_list, eval_epochs_labels_coarse_list, cm  
+    else:
+        return val_cr, eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, cm        
 
                                 
 # Train
-def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, development_dataloader, exp_args, seed=None):
+def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, development_dataloader, test_dataloader, exp_args, seed=None):
 
     torch.autograd.set_detect_anomaly(True)
 
     saved_models = []
 
+    test_results = dict()
+
     with torch.enable_grad():
+        print( 'The input seed is: ', int(seed) )
+        seed_everything( int(seed) )
+        print( 'Currently set seed for numpy is: ', np.random.get_state()[-11] )
+        print( 'Currently set seed for torch is: ', torch.initial_seed() )
         best_f1 = 0.0
 
         for epoch_i in range(0, exp_args.max_eps):
@@ -306,7 +327,6 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
 
                 b_input_ids = batch[0].to(f'cuda:{defModel.device_ids[0]}')
                 b_labels = batch[1].to(f'cuda:{defModel.device_ids[0]}')
-                # print( torch.unique(b_labels) )
                 b_masks = batch[2].to(f'cuda:{defModel.device_ids[0]}')
                 b_pos = batch[3].to(f'cuda:{defModel.device_ids[0]}')
                 b_input_offs = batch[4].to(f'cuda:{defModel.device_ids[0]}')
@@ -402,14 +422,22 @@ def train(defModel, defTokenizer, optimizer, scheduler, train_dataloader, develo
                 print_last_epoch(val_cr, exp_args)
                 model_name_here = base_path + '/' + str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(epoch_i) + '.pth'
                 print('Saving the best model for epoch {} with mean F1 score of {} '.format(epoch_i, val_f1[0] )) 
-                torch.save(defModel.state_dict(), model_name_here)
+                # torch.save(defModel.state_dict(), model_name_here)
                 best_f1 = val_f1[0]
                 saved_models.append(model_name_here)
 
                 # Write input IDs and labels down to a file for inspection for the best final val score....
-                write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, exp_args, seed=seed)
-                plot_cm(cm, exp_args, seed=seed)
+                # write_preds(eval_epochs_inputs_coarse_i, eval_epochs_logits_coarse_i, eval_epochs_labels_coarse_i, exp_args, seed=seed)
+                # plot_cm(cm, exp_args, seed=seed)
 
-        # optimizer.swap_swa_sgd()
+                # run predictions for the test set and write them to a file...
+                _, test_epochs_inputs_coarse_i, test_epochs_logits_coarse_i, test_epochs_labels_coarse_i, _  = evaluate(defModel, defTokenizer, optimizer, scheduler, test_dataloader, exp_args, epoch_i, mode='test', seed=seed)
+                # print( len(test_epochs_inputs_coarse_i) )
+                # print( len(test_epochs_logits_coarse_i) )
+                # print( len(test_epochs_labels_coarse_i) )
+                key = str(exp_args.entity) + '/' + str(seed) + '/' + str(exp_args.embed) + '/' + str(exp_args.model) + '_' + str(exp_args.predictor) + '_ep_' + str(epoch_i)
+                test_results[ key ] = [test_epochs_inputs_coarse_i, test_epochs_labels_coarse_i, test_epochs_logits_coarse_i]
+                # write_preds(test_epochs_inputs_coarse_i, test_epochs_logits_coarse_i, test_epochs_labels_coarse_i, exp_args, seed=seed, alternative_path='predictions_test')
 
-    return saved_models
+
+    return saved_models, test_results
