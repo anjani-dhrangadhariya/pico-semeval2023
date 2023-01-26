@@ -88,13 +88,16 @@ if __name__ == "__main__":
         # with mlflow.start_run() as run:
         for i in [0, 1, 42]:
 
-            for j in ['linear', 'crf']:
+            for j in ['linear']:
+            # for j in ['linear', 'crf']:
 
-                for k in ['roberta', 'biomedroberta', 'bioredditbert']:
-
+                for k in ['roberta', 'biomedroberta']:
+                # for k in ['roberta', 'biomedroberta', 'bioredditbert']:
+                    exp_args.seed = i
                     seed_everything( i )
                     exp_args.predictor = j
                     exp_args.embed = k
+                    
 
                     start_feature_transformation = time.time()
                     tokenizer, model = choose_embed_type.choose_tokenizer_type( exp_args.embed )
@@ -156,9 +159,12 @@ if __name__ == "__main__":
                         dev_data = TensorDataset(dev_input_ids, dev_input_labels, dev_input_labels_fine, dev_attn_masks, dev_pos_tags, dev_offsets, dev_char, dev_ortho)
                         test_data = TensorDataset(test_input_ids, test_input_labels, test_input_labels_fine, test_attn_masks, test_pos_tags, test_offsets, test_char, test_ortho)
 
-                    train_dataloader = DataLoader(train_data, sampler=None, batch_size=10, shuffle=False)
-                    dev_dataloader = DataLoader(dev_data, sampler=None, batch_size=exp_args.batch, shuffle=False)
-                    test_dataloader = DataLoader(test_data, sampler=None, batch_size=exp_args.batch, shuffle=False)
+                    g = torch.Generator()
+                    g.manual_seed(0)
+
+                    train_dataloader = DataLoader(train_data, sampler=None, batch_size=10, shuffle=False, num_workers=0, worker_init_fn=i, generator=g )
+                    dev_dataloader = DataLoader(dev_data, sampler=None, batch_size=exp_args.batch, shuffle=False, num_workers=0, worker_init_fn=i, generator=g )
+                    test_dataloader = DataLoader(test_data, sampler=None, batch_size=exp_args.batch, shuffle=False, num_workers=0, worker_init_fn=i, generator=g )
                     print( 'Dataloaders loaded...' )
 
                     # ##################################################################################
@@ -212,7 +218,9 @@ if __name__ == "__main__":
                     print('##################################################################################')
                     train_start = time.time()
                     if 'mtl' not in exp_args.model:
-                        saved_models = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args, seed = i)
+                        saved_models, test_results = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, test_dataloader, exp_args, seed = i)
+                        print( 'Currently set seed is: ', torch.seed() )
+                        print( test_results.keys() )
                     elif 'mtl' in exp_args.model:
                         saved_models = train_mtl(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
 
