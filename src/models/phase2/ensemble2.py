@@ -86,7 +86,7 @@ class ENSEMBLE2(nn.Module):
             for p in self.transformer_layer.parameters():
                 p.requires_grad = False
 
-        self.dropout_layer = Dropout(p=0.8, inplace=False)
+        # self.dropout_layer = Dropout(p=0.8, inplace=False)
 
         #Instantiating LSTM 
         self.bidrec = exp_args.bidrec
@@ -149,7 +149,7 @@ class ENSEMBLE2(nn.Module):
         sequence_output = outputs[0]
 
         # dropout layer
-        sequence_output = self.dropout_layer( sequence_output )
+        # sequence_output = self.dropout_layer( sequence_output )
 
         # pass transformer output from BiLSTM layer
         lstm_output = self.apply_bilstm(sequence_output, attention_mask, tokenizer)

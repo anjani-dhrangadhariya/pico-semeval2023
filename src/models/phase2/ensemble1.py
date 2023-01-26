@@ -86,7 +86,7 @@ class ENSEMBLE1(nn.Module):
             for p in self.transformer_layer.parameters():
                 p.requires_grad = False
 
-        if exp_args.entity != 'all':
+        if exp_args.entity == 'xyz':
             self.dropout_layer = Dropout(p=0.8, inplace=False)
 
 
@@ -121,7 +121,7 @@ class ENSEMBLE1(nn.Module):
         sequence_output = outputs[0]
 
         # dropout layer
-        if args.entity != 'all':
+        if args.entity == 'xyz':
             sequence_output = self.dropout_layer( sequence_output )
 
         # mask the unimportant tokens before log_reg

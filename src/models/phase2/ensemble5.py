@@ -237,17 +237,22 @@ class ENSEMBLE5(nn.Module):
         else:
 
             # on the first time steps XXX CLS token is active at position 0
-            # for eachIndex in range( mask.shape[0] ):
-            #     mask[eachIndex, 0] = True
+            for eachIndex in range( mask.shape[0] ):
+                mask[eachIndex, 0] = True
 
-            # for eachIndex in range( labels_masked.shape[0] ):
-            #     labels_masked[eachIndex, 0] = 0
-            #     labels[eachIndex, 0] = 0
+            for eachIndex in range( labels_masked.shape[0] ):
+                labels_masked[eachIndex, 0] = 0
+                labels[eachIndex, 0] = 0
+
+            # print( torch.unique(labels_masked) )
+            # print( torch.unique(labels) )
+            # print( torch.unique(mask) )
 
             # CRF emissions
-            loss = self.crf_layer(probablities_masked, labels_masked, reduction='token_mean', mask = None)
+            loss = self.crf_layer(probablities_masked, labels_masked, reduction='token_mean', mask = mask)
+            print( loss )
 
-            emissions_ = self.crf_layer.decode( probablities_masked , mask = None)
+            emissions_ = self.crf_layer.decode( probablities_masked , mask = mask)
             emissions = [item for sublist in emissions_ for item in sublist] # flatten the nest list of emissions
 
             target_emissions = torch.zeros(probablities_masked.shape[0], probablities_masked.shape[1])
