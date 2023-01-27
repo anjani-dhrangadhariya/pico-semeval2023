@@ -39,6 +39,7 @@ def seed_everything( seed ):
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 picos_mapping = {'participant': 1, 'intervention':2, 'outcome':3, 'oos':0}
 
@@ -262,9 +263,6 @@ def load_data(input_directory):
 
     test_labels = process_labels( test_df.labels )
     test_df = test_df.assign( labels = test_labels.values )
-
-    # for i,j in zip( train_df['labels_coarse'], train_df['labels_fine'] ):
-    #     print( set(i), set(j) )
 
     # token_claim_offsets to numbers
     train_df['token_claim_offsets'] = train_df['token_claim_offsets'].apply( preprocess_token_claim_offsets )
