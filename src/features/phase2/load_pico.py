@@ -190,6 +190,7 @@ def load_data(input_directory):
     train_df = pd.read_csv(f'{input_directory}/{train}', sep='\t')
     val_df = pd.read_csv(f'{input_directory}/{val}', sep='\t') 
     test_df = pd.read_csv(f'{input_directory}/{test}', sep='\t') 
+    print('Size of test data is: ', test_df.shape )
 
     # convert strings to Lists
     train_df['tokens'] = train_df['tokens'].apply( str_2_list )

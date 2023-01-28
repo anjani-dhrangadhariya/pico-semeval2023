@@ -26,13 +26,18 @@ from mtl_5 import MTL_5
 from ensemble1 import ENSEMBLE1
 from ensemble2 import ENSEMBLE2
 from ensemble3 import ENSEMBLE3
+from ensemble5 import ENSEMBLE5
+from ensemble7 import ENSEMBLE7
+from ensemble9 import ENSEMBLE9
+from ensemble11 import ENSEMBLE11
+from ensemble13 import ENSEMBLE13
 
 
 import model_tokenizer
 
 TOKENIZERS = model_tokenizer.HF_TOKENIZERS
 MODELS = model_tokenizer.HF_MODELS
-MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'ensemble2': ENSEMBLE2, 'ensemble3': ENSEMBLE3, 'ensemble4': ENSEMBLE3, 'transformerlinear': TRANSFORMERLINEAR, 'transformerpos': TRANSFORMERPOS, 'transformerposcrf':TRANSFORMERPOSCRF , 'transformercrf': TRANSFORMERCRF, 'transformerlstmlinear':TRANSFORMERBiLSTMLINEAR, 'transformerlstmattnlin':TRANSFORMERAttenLin, 'transformerposlstmattnlin':TRANSFORMERPOSAttenLin, 'mtl_0':MTL_0, 'mtl_baseline':MTLBASELINE, 'mtl_2':MTL_2, 'mtl_3':MTL_3, 'mtl_4': MTL_4, 'mtl_5': MTL_5 }
+MODEL_DICT = { 'ensemble1': ENSEMBLE1, 'ensemble2': ENSEMBLE2, 'ensemble3': ENSEMBLE3, 'ensemble4': ENSEMBLE3, 'ensemble5': ENSEMBLE5, 'ensemble6': ENSEMBLE5, 'ensemble7': ENSEMBLE7, 'ensemble8': ENSEMBLE7, 'ensemble9': ENSEMBLE9, 'ensemble10': ENSEMBLE9, 'ensemble11': ENSEMBLE11, 'ensemble12': ENSEMBLE11, 'ensemble13': ENSEMBLE13, 'ensemble14': ENSEMBLE13, 'transformerlinear': TRANSFORMERLINEAR, 'transformerpos': TRANSFORMERPOS, 'transformerposcrf':TRANSFORMERPOSCRF , 'transformercrf': TRANSFORMERCRF, 'transformerlstmlinear':TRANSFORMERBiLSTMLINEAR, 'transformerlstmattnlin':TRANSFORMERAttenLin, 'transformerposlstmattnlin':TRANSFORMERPOSAttenLin, 'mtl_0':MTL_0, 'mtl_baseline':MTLBASELINE, 'mtl_2':MTL_2, 'mtl_3':MTL_3, 'mtl_4': MTL_4, 'mtl_5': MTL_5 }
 
 ##################################################################################
 # Load the chosen tokenizer
