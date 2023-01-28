@@ -13,6 +13,8 @@ import sys
 import time
 import traceback
 
+from utilities.write_preds import flatten_df, write_preds
+
 path = '/home/anjani/pico-semeval2023/src/features/phase2'
 sys.path.append(path)
 print(sys.path)
@@ -92,7 +94,7 @@ if __name__ == "__main__":
             # for j in ['linear', 'crf']:
 
                 for k in ['roberta', 'biomedroberta']:
-                # for k in ['roberta', 'biomedroberta', 'bioredditbert']:
+                # for k in ['biomedroberta', 'roberta', 'bioredditbert']:
                     exp_args.seed = i
                     seed_everything( i )
                     exp_args.predictor = j
@@ -186,16 +188,12 @@ if __name__ == "__main__":
                         loaded_model = loadModel(loaded_model, exp_args)
                     print('The devices used: ', str(loaded_model.device_ids) )
 
-
                     # ##################################################################################
                     # # Note: AdamW is a class from the huggingface library (as opposed to pytorch) 
                     optimizer = AdamW(model.parameters(),
                                     lr = exp_args.lr, # args.learning_rate - default is 5e-5 (for BERT-base)
                                     eps = exp_args.eps, # args.adam_epsilon  - default is 1e-8.
                                     )
-
-                    # base_opt = torch.optim.AdamW(model.parameters(), lr=0.1)
-                    # optimizer = SWA(base_opt, swa_start=10, swa_freq=5, swa_lr=0.05)
 
                     # Total number of training steps is number of batches * number of epochs.
                     total_steps = len(train_dataloader) * exp_args.max_eps
@@ -219,8 +217,23 @@ if __name__ == "__main__":
                     train_start = time.time()
                     if 'mtl' not in exp_args.model:
                         saved_models, test_results = train(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, test_dataloader, exp_args, seed = i)
-                        print( 'Currently set seed is: ', torch.seed() )
-                        print( test_results.keys() )
+                        last_key = list(test_results.keys())[-1]
+                        input_tokens = test_results[ last_key ][0]
+                        input_labels = test_results[ last_key ][1]
+                        input_predictions = test_results[ last_key ][2]
+
+                        for x, y, z, xyz in zip(list( test_df.tokens ) , input_tokens, input_labels, input_predictions) :
+                            assert len(x) == len(y) == len(z) == len(xyz)
+
+                        # Collate predictions to test df
+                        test_df = test_df.assign( predictions = pd.Series(input_predictions).values )
+
+                        # TODO: Write in required prediction format
+                        # subreddit id, post id, words, labels
+                        flattened_dataframe = flatten_df( test_df, exp_args )
+                        write_preds(flattened_dataframe, exp_args, last_key)
+                            
+
                     elif 'mtl' in exp_args.model:
                         saved_models = train_mtl(loaded_model, tokenizer, optimizer, scheduler, train_dataloader, dev_dataloader, exp_args)
 
@@ -234,16 +247,17 @@ if __name__ == "__main__":
                     print( 'Results for the seed: ', i )
                     print( 'Arguments: ', exp_args )
 
+                    '''
                     checkpoint = torch.load(saved_models[-1], map_location='cuda:0')
-                    # checkpoint = torch.load('/mnt/nas2/results/Results/systematicReview/SemEval2023/models/all/roberta_epoch_0.pth', map_location='cuda:0')
+                    # checkpoint = torch.load('/mnt/nas2/results/Results/systematicReview/SemEval2023/models/without_Dropout/participant/0/roberta/ensemble7_linear_ep_9.pth', map_location='cuda:0')
                     model.load_state_dict( checkpoint, strict=False  )
                     model = torch.nn.DataParallel(model, device_ids=[0])
 
-                    # print('Applying the best model on test set ...')
-                    # test1_cr, all_pred_flat, all_GT_flat, cm1, test1_words, class_rep_temp = evaluate(model, tokenizer, optimizer, scheduler, test_dataloader, exp_args)
-                    # print(test1_cr)
-                    # print(cm1)
-
+                    print('Applying the best model on test set ...')
+                    test1_cr, all_pred_flat, all_GT_flat, cm1, test1_words, class_rep_temp = evaluate(model, tokenizer, optimizer, scheduler, test_dataloader, exp_args, mode='test', seed=exp_args.seed)
+                    print( 'The result for test set are here....' )
+                    print(test1_cr)
+                    '''
 
     except Exception as ex:
 
