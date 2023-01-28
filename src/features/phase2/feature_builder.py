@@ -17,13 +17,6 @@ tqdm.pandas()
 
 def build_features(seed, args, tokenizer):
 
-
-    # load arguments
-    # args = getArguments() # get all the experimental arguments
-    # seed 
-    seed_everything( seed=seed )
-
-
     train_df, val_df, test_df = load_data(args.data_dir )
     print( 'Data loaded...' )
 
