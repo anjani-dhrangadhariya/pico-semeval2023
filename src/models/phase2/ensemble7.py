@@ -67,6 +67,13 @@ from transformers import BertModel, BertTokenizer, BertConfig, BertForTokenClass
 from transformers import AdamW, BertConfig 
 from transformers import get_linear_schedule_with_warmup
 
+from features.phase2 import arguments
+from load_pico import seed_everything
+
+# args = arguments.getArguments() # get all the experimental arguments
+# seed = args.seed
+# seed_everything( int(seed) )
+
 # Import data getters
 from utilities.helper_functions import get_packed_padded_output, get_packed_padded_output_dataparallel
 
@@ -110,7 +117,7 @@ class ENSEMBLE7(nn.Module):
         # Max Pooling Layer
         self.max_pooling_layer = nn.MaxPool1d( 24 )
         # fc layer
-        self.fc1 = nn.Sequential( nn.Linear( self.n_conv_filters, self.conv_out_dim ) , nn.Dropout(0.5) )
+        self.fc1 = nn.Sequential( nn.Linear( self.n_conv_filters, self.conv_out_dim ) , nn.Dropout(0.5 ) )
 
 
         # log reg predictor
@@ -137,7 +144,6 @@ class ENSEMBLE7(nn.Module):
 
         return average_loss
 
-    # def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, input_offs=None, mode = None, args = None):
     def forward(self, input_ids=None, attention_mask=None, labels=None, labels_fine=None, input_pos=None, input_offs=None, input_char_encode=None, input_char_ortho=None, mode = None, args = None):
 
         self.max_len = args.max_len

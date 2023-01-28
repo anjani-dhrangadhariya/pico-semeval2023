@@ -68,36 +68,56 @@ from transformers import AdamW, BertConfig
 from transformers import get_linear_schedule_with_warmup
 
 # Import data getters
-from utilities.helper_functions import get_packed_padded_output
+from utilities.helper_functions import get_packed_padded_output, get_packed_padded_output_dataparallel
 
-class ENSEMBLE2(nn.Module):
+class ENSEMBLE13(nn.Module):
 
     def __init__(self, freeze_bert, tokenizer, model, exp_args):
-        super(ENSEMBLE2, self).__init__()
+        super(ENSEMBLE13, self).__init__()
 
         self.tokenizer = tokenizer
 
         #Instantiating BERT model object 
         self.transformer_layer = model
         transformer_dim = 768
+        pos_dim = 18
+        hidden_pos = pos_dim * 2
+
+        # Define the dimentions for the character features 
+        char_hidden_dim = 69
+        ortho_hidden_dim = 4
         
         #Freeze bert layers: if True, the freeze BERT weights
         if freeze_bert:
             for p in self.transformer_layer.parameters():
                 p.requires_grad = False
 
+        # dropout to regularize
         # self.dropout_layer = Dropout(p=0.8, inplace=False)
 
-        #Instantiating LSTM 
-        self.bidrec = exp_args.bidrec
-        self.lstm_hidden_dim = 512
+        # POS encoder
+        if exp_args.bidrec == True and exp_args.pos_encoding == 'lstm':
+            self.lstmpos_layer = nn.LSTM(input_size=pos_dim, hidden_size = hidden_pos, num_layers = 1, bidirectional=exp_args.bidrec, batch_first=True)
 
+        # Character layers
+        # Concatenate the ortho and char encoding layers
+        char_dim = char_hidden_dim + ortho_hidden_dim # 69 + 4 = 73
+        self.n_conv_filters=256
+        self.conv_out_dim = 1024
 
-        # lstm layer for POS tags and the embeddings
-        self.lstm_layer = nn.LSTM(input_size=transformer_dim, hidden_size = self.lstm_hidden_dim, num_layers = 1, bidirectional=exp_args.bidrec, batch_first=True)
+        # char layers (ensemble5 only takes ortho features)
+        self.conv1 = nn.Conv1d( ortho_hidden_dim, self.n_conv_filters, kernel_size=7, padding=0)
+        # Max Pooling Layer
+        self.max_pooling_layer = nn.MaxPool1d( 24 )
+        # fc layer
+        self.fc1 = nn.Sequential( nn.Linear( self.n_conv_filters, self.conv_out_dim ) , nn.Dropout(0.5) )
+
 
         # log reg predictor
-        self.hidden2tag = nn.Linear(transformer_dim*2, exp_args.num_labels)
+        if exp_args.bidrec == True and exp_args.pos_encoding == 'lstm':
+            self.hidden2tag = nn.Linear(transformer_dim + ( hidden_pos * 2 ) + self.conv_out_dim, exp_args.num_labels)
+        else:
+            self.hidden2tag = nn.Linear( transformer_dim + pos_dim + self.conv_out_dim , exp_args.num_labels)
 
         if exp_args.predictor == 'crf':
             # crf layer
@@ -105,7 +125,6 @@ class ENSEMBLE2(nn.Module):
 
         # loss calculation
         self.loss_fct = nn.CrossEntropyLoss()
-
 
     def get_loss(self, probablities_masked, labels_masked ):
 
@@ -118,28 +137,10 @@ class ENSEMBLE2(nn.Module):
 
         return average_loss
 
-    def apply_bilstm(self, sequence_output, attention_mask, tokenizer):
-
-        # lstm with masks (same as attention masks)
-        packed_input, perm_idx, seq_lengths = get_packed_padded_output(sequence_output, attention_mask, tokenizer)
-        packed_output, (ht, ct) = self.lstm_layer(packed_input)
-
-        # Unpack and reorder the output
-        output, input_sizes = pad_packed_sequence(packed_output, batch_first=True)
-        _, unperm_idx = perm_idx.sort(0)
-        lstm_output = output[unperm_idx] # lstm_output.shape = shorter than the padded torch.Size([6, 388, 512])
-        seq_lengths_ordered = seq_lengths[unperm_idx]
-
-        # Expands the shortended LSTM output to original
-        lstm_repadded = torch.zeros( size= (lstm_output.shape[0], sequence_output.shape[1], sequence_output.shape[2]*2 ) )
-        lstm_repadded[ :, :lstm_output.shape[1], :lstm_output.shape[2] ] = lstm_output
-        lstm_repadded = lstm_repadded.cuda()
-
-        return lstm_repadded
-
+    # def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, input_offs=None, mode = None, args = None):
     def forward(self, input_ids=None, attention_mask=None, labels=None, labels_fine=None, input_pos=None, input_offs=None, input_char_encode=None, input_char_ortho=None, mode = None, args = None):
-        
-        tokenizer = self.tokenizer
+
+        self.max_len = args.max_len
 
         # Transformer
         outputs = self.transformer_layer(
@@ -151,9 +152,23 @@ class ENSEMBLE2(nn.Module):
         # dropout layer
         # sequence_output = self.dropout_layer( sequence_output )
 
-        # pass transformer output from BiLSTM layer
-        lstm_output = self.apply_bilstm(sequence_output, attention_mask, tokenizer)
+        # LSTM encode the POS tags
+        if args.pos_encoding == 'lstm':
+            packed_pos_input, pos_perm_idx, pos_seq_lengths, total_length_pos = get_packed_padded_output_dataparallel(input_pos.float(), attention_mask)
+            self.lstmpos_layer.flatten_parameters()
+            packed_pos_output, (ht_pos, ct_pos) = self.lstmpos_layer(packed_pos_input)
+            pos_output, pos_input_sizes = pad_packed_sequence(packed_pos_output, batch_first=True, total_length=total_length_pos)
+            _, unperm_idx = pos_perm_idx.sort(0)
+            lstm_pos_output = pos_output[unperm_idx]
 
+        # Concat POS tags with embedding output
+        if args.pos_encoding == 'lstm':
+            sequence_output_concat = torch.cat( (sequence_output, lstm_pos_output), 2) # concatenate at dim 2 for embeddings and tags
+            sequence_output_concat = sequence_output_concat.cuda()
+        if args.pos_encoding == 'onehot':
+            sequence_output_concat = torch.cat( (sequence_output, input_pos), 2) # concatenate at dim 2 for embeddings and tags
+            sequence_output_concat = sequence_output_concat.cuda()
+        
         # mask the unimportant tokens before log_reg
         mask = (
             (input_ids != self.tokenizer.pad_token_id)
@@ -162,13 +177,49 @@ class ENSEMBLE2(nn.Module):
             & (labels != 100)
         )
 
-        mask_expanded = mask.unsqueeze(-1).expand(sequence_output.size())
-        sequence_output *= mask_expanded.float()
-
+        # expand the mask according the concatenated sequence output and POS tags
+        mask_expanded = mask.unsqueeze(-1).expand(sequence_output_concat.size())
+        sequence_output_concat *= mask_expanded.float()
         labels_masked = labels * mask.long()
 
+        # conv layer
+        input_char_ortho_reshaped = input_char_ortho.reshape( input_char_ortho.shape[0], input_char_ortho.shape[1], input_char_ortho.shape[3], input_char_ortho.shape[2] )
+        input_char_ortho_reshaped = input_char_ortho_reshaped.cuda()
+
+        # empty tensor to collect the convolutions
+        batch_conv = torch.empty(size= ( 0, self.max_len, 1024 ))
+        batch_conv = batch_conv.cuda()
+
+        # iterate through each sentence to retrieve the character representation
+        for i in range( input_char_ortho.shape[0] ):
+
+            # print( char_concat_output[i].shape )
+
+            conv1_output = self.conv1( input_char_ortho_reshaped[i].float()  )
+            # print( 'Dimension of the conv1 output: ', conv1_output.shape )
+
+            # GAP
+            max_pool_out = self.max_pooling_layer(conv1_output)
+            max_pool_out = torch.mean(conv1_output, axis=2)
+            # print( torch.mean(conv1_output, axis=2).shape )
+            # print( 'Dimension of the max_pool_out output: ', max_pool_out.shape )
+                        
+            # max_pool_out = max_pool_out.squeeze()
+            # print( 'Dimension of the sentence embeddings: ', max_pool_out.shape )
+
+            # fully connected
+            fc1_output = F.relu ( self.fc1( max_pool_out ) )
+            # print( 'Dimension of the fully connected output: ', fc1_output.shape )
+
+            batch_conv = torch.cat( ( batch_conv, fc1_output.unsqueeze(dim=0) ) )
+
+
+        # concat conv output with transformer+POS embeddings
+        transform_pos_char_output = torch.cat( ( sequence_output_concat, batch_conv), 2)
+        transform_pos_char_output = transform_pos_char_output.cuda()
+
         # linear layer (log reg) to emit class probablities
-        probablities = F.relu ( self.hidden2tag( lstm_output ) )
+        probablities = F.relu ( self.hidden2tag( transform_pos_char_output ) )
         probablities_mask_expanded = mask.unsqueeze(-1).expand(probablities.size())
         probablities_masked = probablities * probablities_mask_expanded.float()
 
@@ -195,8 +246,13 @@ class ENSEMBLE2(nn.Module):
                 labels_masked[eachIndex, 0] = 0
                 labels[eachIndex, 0] = 0
 
+            # print( torch.unique(labels_masked) )
+            # print( torch.unique(labels) )
+            # print( torch.unique(mask) )
+
             # CRF emissions
             loss = self.crf_layer(probablities_masked, labels_masked, reduction='token_mean', mask = mask)
+            print( loss )
 
             emissions_ = self.crf_layer.decode( probablities_masked , mask = mask)
             emissions = [item for sublist in emissions_ for item in sublist] # flatten the nest list of emissions

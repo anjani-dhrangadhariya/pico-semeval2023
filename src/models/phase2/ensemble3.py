@@ -120,7 +120,7 @@ class ENSEMBLE3(nn.Module):
 
         return average_loss
 
-    def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, input_offs=None, mode = None, args = None):
+    def forward(self, input_ids=None, attention_mask=None, labels=None, labels_fine=None, input_pos=None, input_offs=None, input_char_encode=None, input_char_ortho=None, mode = None, args = None):
 
         # Transformer
         outputs = self.transformer_layer(

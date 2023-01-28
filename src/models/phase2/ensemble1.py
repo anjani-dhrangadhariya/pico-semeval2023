@@ -15,6 +15,7 @@ from multiprocessing import reduction
 import warnings
 
 import sys
+from load_pico import seed_everything
 
 from train_pico import constrained_beam_search
 path = '/home/anjani/pico-semeval2023/src/models/phase2'
@@ -69,6 +70,8 @@ from transformers import get_linear_schedule_with_warmup
 
 # Import data getters
 from utilities.helper_functions import get_packed_padded_output
+from features.phase2 import arguments
+
 
 class ENSEMBLE1(nn.Module):
 
@@ -111,7 +114,7 @@ class ENSEMBLE1(nn.Module):
 
         return average_loss
 
-    def forward(self, input_ids=None, attention_mask=None, labels=None, input_pos=None, input_offs=None, mode = None, args = None):
+    def forward(self, input_ids=None, attention_mask=None, labels=None, labels_fine=None, input_pos=None, input_offs=None, input_char_encode=None, input_char_ortho=None, mode = None, args = None):
 
         # Transformer
         outputs = self.transformer_layer(
